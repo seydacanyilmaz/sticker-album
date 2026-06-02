@@ -5,8 +5,8 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
-import { supabase } from './lib/supabaseClient'
 import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
 
 // ProtectedRoute wraps any page that requires login.
 // If the user is not logged in, it redirects them to the login page.
@@ -43,10 +43,7 @@ export default function App() {
           path="/"
           element={
             <ProtectedRoute>
-              <div>
-                <p>Dashboard (coming soon)</p>
-                <button onClick={() => supabase.auth.signOut()}>Sign out</button>
-              </div>
+              <Dashboard />
             </ProtectedRoute>
           }
         />
