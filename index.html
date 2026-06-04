@@ -5,8 +5,19 @@
     <link rel="icon" type="image/png" href="/sticker-album/favicon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>sticker-album</title>
-    <script type="module" crossorigin src="/sticker-album/assets/index-DD9olgAw.js"></script>
-    <link rel="stylesheet" crossorigin href="/sticker-album/assets/index-BsKJy5zX.css">
+    <script>
+      // Apply the saved (or system) theme before first paint to avoid a flash.
+      (function () {
+        try {
+          var t = localStorage.getItem('theme')
+          if (t === 'dark' || (!t && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark')
+          }
+        } catch (e) {}
+      })()
+    </script>
+    <script type="module" crossorigin src="/sticker-album/assets/index-D7iGlqj9.js"></script>
+    <link rel="stylesheet" crossorigin href="/sticker-album/assets/index-7rSTwjl-.css">
   </head>
   <body>
     <div id="root"></div>
