@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <script>
+      // Redirect all 404s back to index.html, preserving the path as a query param
+      // so the React app can restore the correct route on load.
+      var path = window.location.pathname.replace('/sticker-album', '') || '/';
+      window.location.replace('/sticker-album/?redirect=' + encodeURIComponent(path));
+    </script>
+  </head>
+  <body></body>
+</html>
