@@ -1,18 +1,9 @@
 import { test, expect } from '@playwright/test'
+import { addSticker, stickerRow, resetToZero, setCount } from './helpers'
 
-// Helper: type the code into StickerPicker and click the exact suggestion button
-async function addSticker(page, code) {
-  const input = page.locator('input[placeholder*="sticker code"]').first()
-  await input.click()
-  await input.pressSequentially(code, { delay: 30 })
-  // getByRole with exact:true matches only the button whose accessible name is exactly `code`
-  await page.getByRole('button', { name: code, exact: true }).first().click()
-}
-
-// Helper: get a MyStickers table row that starts with exactly `code` (not ENG10 when looking for ENG1)
-function stickerRow(page, code) {
-  return page.getByRole('row', { name: new RegExp(`^${code}\\s`) })
-}
+// These tests never assume a clean database. Any test that depends on a sticker's
+// count first drives that sticker to a known value with setCount / resetToZero, so
+// the suite is idempotent and can be re-run any number of times without a DB reset.
 
 // ─── Dashboard ───────────────────────────────────────────────────────────────
 
@@ -24,7 +15,7 @@ test('dashboard shows welcome message', async ({ page }) => {
 test('dashboard has navigation links', async ({ page }) => {
   await page.goto('.')
   await expect(page.getByRole('link', { name: 'Record new stickers' }).first()).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Record a trade' }).first()).toBeVisible()
+  await expect(page.getByRole('link', { name: 'Record a swap' }).first()).toBeVisible()
   await expect(page.getByRole('link', { name: 'Record donated stickers' }).first()).toBeVisible()
   await expect(page.getByRole('link', { name: 'My Stickers' }).first()).toBeVisible()
 })
@@ -32,6 +23,7 @@ test('dashboard has navigation links', async ({ page }) => {
 // ─── RecordNew ───────────────────────────────────────────────────────────────
 
 test('RecordNew: adds a new sticker and shows it in summary', async ({ page }) => {
+  await setCount(page, 'ENG1', 0)
   await page.goto('record-new')
   await addSticker(page, 'ENG1')
   await page.click('button:has-text("Confirm")')
@@ -40,6 +32,7 @@ test('RecordNew: adds a new sticker and shows it in summary', async ({ page }) =
 })
 
 test('RecordNew: adding same sticker twice shows one new and one duplicate', async ({ page }) => {
+  await setCount(page, 'ENG2', 0)
   await page.goto('record-new')
   await addSticker(page, 'ENG2')
   await addSticker(page, 'ENG2')
@@ -49,7 +42,7 @@ test('RecordNew: adding same sticker twice shows one new and one duplicate', asy
 })
 
 test('RecordNew: recording an already-collected sticker shows it as duplicate', async ({ page }) => {
-  // ENG1 was added in the previous test (count=1), adding again → all duplicates
+  await setCount(page, 'ENG1', 1) // exactly one copy → collected
   await page.goto('record-new')
   await addSticker(page, 'ENG1')
   await page.click('button:has-text("Confirm")')
@@ -78,22 +71,24 @@ test('RecordNew: clear removes all selected stickers', async ({ page }) => {
 
 // ─── MyStickers ──────────────────────────────────────────────────────────────
 
-test('MyStickers: shows ENG1 with correct count and status', async ({ page }) => {
+test('MyStickers: shows a duplicate sticker with correct count and status', async ({ page }) => {
+  await setCount(page, 'ENG1', 2)
   await page.goto('my-stickers')
-  // ENG1 has count 2 (added once, then added again above)
   const row = stickerRow(page, 'ENG1')
   await expect(row).toBeVisible()
   await expect(row.locator('td').nth(2)).toContainText('2')
   await expect(row.locator('td').nth(3)).toContainText('Duplicate')
 })
 
-test('MyStickers: Duplicates filter shows ENG1', async ({ page }) => {
+test('MyStickers: Duplicates filter shows a duplicate sticker', async ({ page }) => {
+  await setCount(page, 'ENG1', 2)
   await page.goto('my-stickers')
   await page.click('button:has-text("Duplicates")')
   await expect(stickerRow(page, 'ENG1')).toBeVisible()
 })
 
-test('MyStickers: Missing filter hides ENG1', async ({ page }) => {
+test('MyStickers: Missing filter hides a collected sticker', async ({ page }) => {
+  await setCount(page, 'ENG1', 1)
   await page.goto('my-stickers')
   await page.click('button:has-text("Missing")')
   await expect(stickerRow(page, 'ENG1')).not.toBeVisible()
@@ -109,7 +104,7 @@ test('MyStickers: search for ENG1 shows ENG1 but hides ENG2', async ({ page }) =
 // ─── RecordDonated ───────────────────────────────────────────────────────────
 
 test('RecordDonated: donating shows success message', async ({ page }) => {
-  // ENG1 has count 2 — donate one, goes to 1
+  await setCount(page, 'ENG1', 2)
   await page.goto('record-donated')
   await addSticker(page, 'ENG1')
   await page.click('button:has-text("Confirm")')
@@ -117,32 +112,31 @@ test('RecordDonated: donating shows success message', async ({ page }) => {
 })
 
 test('RecordDonated: donating count=1 sticker shows warning chip', async ({ page }) => {
-  // ENG1 now has count 1 — selecting it should show the ⚠️ warning
+  await setCount(page, 'ENG1', 1)
   await page.goto('record-donated')
   await addSticker(page, 'ENG1')
   await expect(page.locator('span[title*="1 copy"]')).toBeVisible()
 })
 
 test('RecordDonated: donating more than available shows naughty message', async ({ page }) => {
-  // ENG1 has count 1 — donate twice → clamped to 0
+  await setCount(page, 'ENG1', 1)
   await page.goto('record-donated')
   await addSticker(page, 'ENG1')
-  await addSticker(page, 'ENG1')
+  await addSticker(page, 'ENG1') // donating 2 when only 1 is held → clamp to 0
   await page.click('button:has-text("Confirm")')
   await expect(page.locator('text=naughty')).toBeVisible()
 })
 
 test('RecordDonated: donating sticker with no record shows naughty message', async ({ page }) => {
-  // FWC1 has never been recorded — donating it should warn
+  await resetToZero(page, 'FWC1')
   await page.goto('record-donated')
   await addSticker(page, 'FWC1')
   await page.click('button:has-text("Confirm")')
   await expect(page.locator('text=naughty')).toBeVisible()
 })
 
-// ─── MyStickers (post-donate) ─────────────────────────────────────────────────
-
-test('MyStickers: ENG1 shows count 0 and Missing after donations', async ({ page }) => {
+test('MyStickers: a reset sticker shows count 0 and Missing', async ({ page }) => {
+  await resetToZero(page, 'ENG1')
   await page.goto('my-stickers')
   const row = stickerRow(page, 'ENG1')
   await expect(row.locator('td').nth(2)).toContainText('0')
@@ -166,4 +160,62 @@ test('Nav: title link navigates to dashboard', async ({ page }) => {
   await page.goto('record-new')
   await page.click('a:has-text("Sticker Album Tracker")')
   await expect(page.locator('h1')).toContainText('Welcome')
+})
+
+test('Nav: How it works link opens the help page', async ({ page }) => {
+  await page.goto('.')
+  await page.click('button[aria-label="Toggle menu"]')
+  await page.getByRole('link', { name: 'How it works' }).first().click()
+  await expect(page.getByRole('heading', { name: 'How it works' })).toBeVisible()
+})
+
+// ─── Help page ─────────────────────────────────────────────────────────────────
+
+test('Help: renders the guide with key sections', async ({ page }) => {
+  await page.goto('help')
+  await expect(page.getByRole('heading', { name: 'How it works' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Record a swap' })).toBeVisible()
+  await expect(page.locator('text=Someone outside this app')).toBeVisible()
+  // The new-vs-duplicate summary note we documented
+  await expect(page.locator('text=which stickers were')).toBeVisible()
+})
+
+// ─── RecordSwap / swap ────────────────────────────────────────────────────────
+
+test('RecordSwap: page uses Swap wording and outside-app option', async ({ page }) => {
+  await page.goto('record-trade')
+  await expect(page.locator('h2')).toContainText('Record a swap')
+  await expect(page.locator('text=Swapped with')).toBeVisible()
+  // The new "Someone outside this app" option exists in the dropdown
+  await expect(page.locator('select#traded-with')).toContainText('Someone outside this app')
+})
+
+test('RecordSwap: recording an outside swap updates counts and shows success', async ({ page }) => {
+  // Receiving BRA1 from someone outside the app should add exactly one copy and create
+  // no notification. Reset BRA1 first so the count assertion is exact regardless of history.
+  await setCount(page, 'BRA1', 0)
+  await page.goto('record-trade')
+  await page.selectOption('select#traded-with', { label: 'Someone outside this app' })
+  await addSticker(page, 'BRA1', 0) // received panel
+  await page.click('button:has-text("Confirm")')
+  await expect(page.locator('text=Swap recorded successfully')).toBeVisible()
+
+  await page.goto('my-stickers')
+  const row = stickerRow(page, 'BRA1')
+  await expect(row.locator('td').nth(2)).toContainText('1')
+  await expect(row.locator('td').nth(3)).toContainText('Collected')
+})
+
+// ─── MyStickers summary line ───────────────────────────────────────────────────
+
+test('MyStickers: All filter shows the collection summary', async ({ page }) => {
+  await page.goto('my-stickers')
+  await expect(page.locator('text=You have collected')).toBeVisible()
+  await expect(page.locator('text=out of')).toBeVisible()
+})
+
+test('MyStickers: Duplicates filter shows the duplicates summary', async ({ page }) => {
+  await page.goto('my-stickers')
+  await page.click('button:has-text("Duplicates")')
+  await expect(page.locator('text=You have duplicates for')).toBeVisible()
 })

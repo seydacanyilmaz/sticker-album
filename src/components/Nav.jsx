@@ -10,9 +10,10 @@ import { useProfile } from '../lib/ProfileContext'
 const NAV_LINKS = [
   { label: 'Dashboard', path: '/' },
   { label: 'Record new stickers', path: '/record-new' },
-  { label: 'Record a trade', path: '/record-trade' },
+  { label: 'Record a swap', path: '/record-trade' },
   { label: 'Record donated stickers', path: '/record-donated' },
   { label: 'My Stickers', path: '/my-stickers' },
+  { label: 'How it works', path: '/help' },
 ]
 
 export default function Nav() {

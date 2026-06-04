@@ -11,6 +11,7 @@ import RecordNew from './pages/RecordNew'
 import RecordTrade from './pages/RecordTrade'
 import RecordDonated from './pages/RecordDonated'
 import MyStickers from './pages/MyStickers'
+import Help from './pages/Help'
 import Layout from './components/Layout'
 
 // ProtectedRoute wraps any page that requires login.
@@ -43,6 +44,7 @@ export default function App() {
         <Route path="/record-trade" element={<ProtectedRoute><Layout><RecordTrade /></Layout></ProtectedRoute>} />
         <Route path="/record-donated" element={<ProtectedRoute><Layout><RecordDonated /></Layout></ProtectedRoute>} />
         <Route path="/my-stickers" element={<ProtectedRoute><Layout><MyStickers /></Layout></ProtectedRoute>} />
+        <Route path="/help" element={<ProtectedRoute><Layout><Help /></Layout></ProtectedRoute>} />
 
         {/* Catch all unknown URLs and redirect to home */}
         <Route path="*" element={<Navigate to="/" />} />

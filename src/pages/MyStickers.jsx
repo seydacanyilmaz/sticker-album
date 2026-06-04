@@ -65,6 +65,14 @@ export default function MyStickers() {
 
   if (loadingStickers || loadingCounts) return <p className="text-gray-500">Loading...</p>
 
+  const collectedCount = stickers.filter((sticker) => (userCounts[sticker.id] ?? 0) >= 1).length
+  const totalWithDuplicates = stickers.reduce((sum, sticker) => sum + (userCounts[sticker.id] ?? 0), 0)
+  const duplicateStickerCount = stickers.filter((sticker) => (userCounts[sticker.id] ?? 0) >= 2).length
+  const totalDuplicates = stickers.reduce((sum, sticker) => {
+    const count = userCounts[sticker.id] ?? 0
+    return sum + (count >= 2 ? count - 1 : 0)
+  }, 0)
+
   const filtered = stickers.filter((sticker) => {
     if (search && !sticker.code.toLowerCase().startsWith(search.toLowerCase())) return false
     const count = userCounts[sticker.id] ?? 0
@@ -132,7 +140,20 @@ export default function MyStickers() {
           </button>
         </div>
 
-        <p className="text-sm text-gray-500">{filtered.length} sticker{filtered.length !== 1 ? 's' : ''}</p>
+        {filter === 'all' ? (
+          <p className="text-sm text-gray-600">
+            You have collected <span className="font-semibold text-gray-900">{collectedCount}</span> stickers out of{' '}
+            <span className="font-semibold text-gray-900">{stickers.length}</span>. Your total number of stickers including
+            all duplicates is <span className="font-semibold text-gray-900">{totalWithDuplicates}</span>.
+          </p>
+        ) : filter === 'duplicates' ? (
+          <p className="text-sm text-gray-600">
+            You have duplicates for <span className="font-semibold text-gray-900">{duplicateStickerCount}</span> stickers.
+            Total number of duplicates is <span className="font-semibold text-gray-900">{totalDuplicates}</span>.
+          </p>
+        ) : (
+          <p className="text-sm text-gray-500">{filtered.length} sticker{filtered.length !== 1 ? 's' : ''}</p>
+        )}
       </div>
 
       {/* Table */}

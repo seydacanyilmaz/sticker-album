@@ -1,6 +1,6 @@
 // RecordTrade.jsx
-// Records a trade — two StickerPicker panels (received / given).
-// Creates a trade_notifications row for the other user.
+// Records a swap — two StickerPicker panels (received / given).
+// Creates a trade_notifications row for the other user (table name unchanged).
 // Supports pre-fill via navigation state from the Dashboard swap detail modal.
 
 import { useState, useEffect } from 'react'
@@ -9,6 +9,10 @@ import { supabase } from '../lib/supabaseClient'
 import { useProfile } from '../lib/ProfileContext'
 import { useStickers } from '../lib/StickersContext'
 import StickerPicker from '../components/StickerPicker'
+
+// Sentinel value for swapping with someone who isn't a user of this app —
+// counts are adjusted but no swap notification is sent to anyone.
+const OUTSIDE = 'outside'
 
 export default function RecordTrade() {
   const { profile } = useProfile()
@@ -46,7 +50,10 @@ export default function RecordTrade() {
   }, [profile])
 
   async function fetchOtherUsers() {
-    const { data } = await supabase.from('profiles').select('id, username').neq('id', profile.id)
+    // Hide test accounts from real users; test users can still see each other.
+    let query = supabase.from('profiles').select('id, username').neq('id', profile.id)
+    if (!profile.is_test) query = query.eq('is_test', false)
+    const { data } = await query
     setOtherUsers(data || [])
   }
 
@@ -72,7 +79,7 @@ export default function RecordTrade() {
   function handleClearGiven() { setHistoryGiven((p) => [...p, selectedGiven]); setSelectedGiven([]); clearFeedback() }
 
   async function handleConfirm() {
-    if (!tradedWithUserId) { setError('Please select who you traded with.'); return }
+    if (!tradedWithUserId) { setError('Please select who you swapped with.'); return }
     if (selectedReceived.length === 0 && selectedGiven.length === 0) { setError('Please add at least one sticker.'); return }
 
     setLoading(true)
@@ -114,18 +121,21 @@ export default function RecordTrade() {
       }
     }
 
-    const changes = [
-      ...Object.entries(receivedDeltas).map(([sticker_id, n]) => ({ sticker_id, delta: -n })),
-      ...Object.entries(givenDeltas).map(([sticker_id, n]) => ({ sticker_id, delta: n })),
-    ]
+    // Trading with someone outside the app: adjust counts only, notify no one.
+    if (tradedWithUserId !== OUTSIDE) {
+      const changes = [
+        ...Object.entries(receivedDeltas).map(([sticker_id, n]) => ({ sticker_id, delta: -n })),
+        ...Object.entries(givenDeltas).map(([sticker_id, n]) => ({ sticker_id, delta: n })),
+      ]
 
-    const { error: notifError } = await supabase.from('trade_notifications').insert({
-      from_user_id: profile.id,
-      to_user_id: tradedWithUserId,
-      changes,
-      status: 'pending',
-    })
-    if (notifError) { setError('Something went wrong. Please try again.'); setLoading(false); return }
+      const { error: notifError } = await supabase.from('trade_notifications').insert({
+        from_user_id: profile.id,
+        to_user_id: tradedWithUserId,
+        changes,
+        status: 'pending',
+      })
+      if (notifError) { setError('Something went wrong. Please try again.'); setLoading(false); return }
+    }
 
     setSelectedReceived([]); setHistoryReceived([])
     setSelectedGiven([]); setHistoryGiven([])
@@ -138,12 +148,12 @@ export default function RecordTrade() {
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900">Record a trade</h2>
+      <h2 className="text-xl font-bold text-gray-900">Record a swap</h2>
 
       {/* User selector */}
       <div className="space-y-1">
         <label htmlFor="traded-with" className="block text-sm font-medium text-gray-700">
-          Traded with
+          Swapped with
         </label>
         <select
           id="traded-with"
@@ -155,6 +165,7 @@ export default function RecordTrade() {
           {otherUsers.map((u) => (
             <option key={u.id} value={u.id}>{u.username}</option>
           ))}
+          <option value={OUTSIDE}>Someone outside this app</option>
         </select>
       </div>
 
@@ -217,7 +228,7 @@ export default function RecordTrade() {
       )}
       {success && (
         <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-          Trade recorded successfully!
+          Swap recorded successfully!
         </p>
       )}
       {clampedCodes.length > 0 && (
