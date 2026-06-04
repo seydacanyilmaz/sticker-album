@@ -152,7 +152,7 @@ export default function Dashboard() {
     })
   }
 
-  if (loadingProfile) return <p className="p-8 text-gray-500">Loading...</p>
+  if (loadingProfile) return <p className="p-8 text-gray-500 dark:text-gray-400">Loading...</p>
 
   const stickerById = {}
   for (const s of stickers) stickerById[s.id] = s
@@ -173,7 +173,7 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-8">
-      <h1 className="text-2xl font-bold text-gray-900">Welcome, {profile?.username}</h1>
+      <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Welcome, {profile?.username}</h1>
 
       {/* Navigation buttons */}
       <section className="grid grid-cols-2 gap-3">
@@ -186,7 +186,7 @@ export default function Dashboard() {
           <Link
             key={path}
             to={path}
-            className="block py-3 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium text-sm rounded-xl transition-colors"
+            className="block py-3 px-4 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-200 font-medium text-sm rounded-xl transition-colors"
           >
             {label}
           </Link>
@@ -196,10 +196,10 @@ export default function Dashboard() {
       {/* Swap notification banners */}
       {!loadingNotifications && notifications.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-lg font-semibold text-gray-800">Pending swap notifications</h2>
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Pending swap notifications</h2>
           {notifications.map((notification) => (
-            <div key={notification.id} className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
-              <p className="text-sm text-amber-900">
+            <div key={notification.id} className="bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 rounded-xl p-4 space-y-3">
+              <p className="text-sm text-amber-900 dark:text-amber-200">
                 <span className="font-semibold">{notification.profiles.username}</span> recorded a swap with you —
                 they received <span className="font-semibold">{notification.changes.filter(c => c.delta < 0).length}</span> stickers
                 and gave you <span className="font-semibold">{notification.changes.filter(c => c.delta > 0).length}</span> stickers.
@@ -208,7 +208,7 @@ export default function Dashboard() {
               <div className="flex flex-wrap gap-2">
                 <button
                   onClick={() => setSelectedNotification(notification)}
-                  className="px-4 py-2 bg-white hover:bg-amber-100 text-amber-900 text-sm font-medium rounded-lg border border-amber-300 transition-colors"
+                  className="px-4 py-2 bg-white dark:bg-amber-900/40 hover:bg-amber-100 dark:hover:bg-amber-900/60 text-amber-900 dark:text-amber-100 text-sm font-medium rounded-lg border border-amber-300 dark:border-amber-700 transition-colors"
                 >
                   See details
                 </button>
@@ -220,7 +220,7 @@ export default function Dashboard() {
                 </button>
                 <button
                   onClick={() => handleNotification(notification.id, 'dismissed')}
-                  className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
+                  className="px-4 py-2 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 transition-colors"
                 >
                   Dismiss
                 </button>
@@ -232,23 +232,23 @@ export default function Dashboard() {
 
       {/* Swap summaries */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-gray-800">Swap suggestions</h2>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Swap suggestions</h2>
         {loadingSwaps ? (
-          <p className="text-sm text-gray-500">Calculating swaps...</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Calculating swaps...</p>
         ) : swapSummaries.length === 0 ? (
-          <p className="text-sm text-gray-500">No swap suggestions yet.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">No swap suggestions yet.</p>
         ) : (
           <div className="space-y-2">
             {swapSummaries.map((summary) => (
-              <div key={summary.userId} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
-                <p className="text-sm text-gray-700">
-                  You can offer <span className="font-semibold text-blue-700">{summary.iCanOffer}</span> stickers
+              <div key={summary.userId} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
+                  You can offer <span className="font-semibold text-blue-700 dark:text-blue-400">{summary.iCanOffer}</span> stickers
                   to <span className="font-semibold">{summary.username}</span> and they have{' '}
-                  <span className="font-semibold text-blue-700">{summary.theyCanOffer}</span> you need.
+                  <span className="font-semibold text-blue-700 dark:text-blue-400">{summary.theyCanOffer}</span> you need.
                 </p>
                 <button
                   onClick={() => setSelectedSwap(summary)}
-                  className="shrink-0 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors font-medium"
+                  className="shrink-0 px-3 py-1.5 text-sm text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/50 border border-blue-200 dark:border-blue-800 rounded-lg transition-colors font-medium"
                 >
                   See details
                 </button>
@@ -260,19 +260,19 @@ export default function Dashboard() {
 
       {/* Everyone's progress */}
       <section className="space-y-3">
-        <h2 className="text-lg font-semibold text-gray-800">Everyone's progress</h2>
+        <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Everyone's progress</h2>
         {loadingSwaps ? (
-          <p className="text-sm text-gray-500">Loading progress...</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading progress...</p>
         ) : userProgress.length === 0 ? (
-          <p className="text-sm text-gray-500">No progress to show yet.</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">No progress to show yet.</p>
         ) : (
           <div className="space-y-2">
             {userProgress.map((u) => (
-              <div key={u.userId} className="bg-white border border-gray-200 rounded-xl px-4 py-3">
-                <p className="text-sm text-gray-700">
+              <div key={u.userId} className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 rounded-xl px-4 py-3">
+                <p className="text-sm text-gray-700 dark:text-gray-300">
                   <span className="font-semibold">{u.isSelf ? 'You' : u.username}</span>{' '}
                   {u.isSelf ? 'have' : 'has'} completed{' '}
-                  <span className="font-semibold text-green-700">{u.completed}</span> out of{' '}
+                  <span className="font-semibold text-green-700 dark:text-green-400">{u.completed}</span> out of{' '}
                   <span className="font-semibold">{stickers.length}</span> stickers.{' '}
                   {u.isSelf ? 'You have' : 'They have'}{' '}
                   <span className="font-semibold">{u.total}</span> total stickers including duplicates.
@@ -290,36 +290,36 @@ export default function Dashboard() {
           onClick={() => setSelectedSwap(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 space-y-5"
+            className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 space-y-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Swap details with {selectedSwap.username}
             </h3>
 
             <div className="space-y-1">
-              <h4 className="text-sm font-semibold text-gray-700">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 You can offer ({selectedSwap.iCanOffer}):
               </h4>
               {selectedSwap.iCanOfferStickers.length > 0 ? (
-                <p className="text-sm text-gray-600 leading-relaxed">
+                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   {selectedSwap.iCanOfferStickers.map(s => s.code).join(', ')}
                 </p>
               ) : (
-                <p className="text-sm text-gray-400">Nothing to offer.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Nothing to offer.</p>
               )}
             </div>
 
             <div className="space-y-1">
-              <h4 className="text-sm font-semibold text-gray-700">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 {selectedSwap.username} can offer you ({selectedSwap.theyCanOffer}):
               </h4>
               {selectedSwap.theyCanOfferMeStickers.length > 0 ? (
-                <p className="text-sm text-gray-600 leading-relaxed">
+                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">
                   {selectedSwap.theyCanOfferMeStickers.map(s => s.code).join(', ')}
                 </p>
               ) : (
-                <p className="text-sm text-gray-400">Nothing to offer.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Nothing to offer.</p>
               )}
             </div>
 
@@ -333,7 +333,7 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={() => setSelectedSwap(null)}
-                className="px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
+                className="px-4 py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 transition-colors"
               >
                 Close
               </button>
@@ -349,35 +349,35 @@ export default function Dashboard() {
           onClick={() => setSelectedNotification(null)}
         >
           <div
-            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 space-y-5"
+            className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 space-y-5"
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 className="text-lg font-semibold text-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Swap recorded by {selectedNotification.profiles.username}
             </h3>
-            <p className="text-sm text-gray-500">
+            <p className="text-sm text-gray-500 dark:text-gray-400">
               Review the changes below. Accepting applies them to your collection automatically.
             </p>
 
             <div className="space-y-1">
-              <h4 className="text-sm font-semibold text-gray-700">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 You receive ({selectedNotification.changes.filter(c => c.delta > 0).length}):
               </h4>
               {selectedNotification.changes.some(c => c.delta > 0) ? (
-                <p className="text-sm text-gray-600 leading-relaxed">{codesFor(selectedNotification.changes, 1)}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{codesFor(selectedNotification.changes, 1)}</p>
               ) : (
-                <p className="text-sm text-gray-400">Nothing.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Nothing.</p>
               )}
             </div>
 
             <div className="space-y-1">
-              <h4 className="text-sm font-semibold text-gray-700">
+              <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                 You give ({selectedNotification.changes.filter(c => c.delta < 0).length}):
               </h4>
               {selectedNotification.changes.some(c => c.delta < 0) ? (
-                <p className="text-sm text-gray-600 leading-relaxed">{codesFor(selectedNotification.changes, -1)}</p>
+                <p className="text-sm text-gray-600 dark:text-gray-400 leading-relaxed">{codesFor(selectedNotification.changes, -1)}</p>
               ) : (
-                <p className="text-sm text-gray-400">Nothing.</p>
+                <p className="text-sm text-gray-400 dark:text-gray-500">Nothing.</p>
               )}
             </div>
 
@@ -390,13 +390,13 @@ export default function Dashboard() {
               </button>
               <button
                 onClick={() => handleNotification(selectedNotification.id, 'dismissed')}
-                className="px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
+                className="px-4 py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 transition-colors"
               >
                 Dismiss
               </button>
               <button
                 onClick={() => setSelectedNotification(null)}
-                className="px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
+                className="px-4 py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 transition-colors"
               >
                 Close
               </button>

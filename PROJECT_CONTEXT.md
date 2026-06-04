@@ -8,7 +8,7 @@ A private web app for a small group of users to track individual sticker album c
 ## Tech stack
 - **Frontend:** React + Vite
 - **Database & Auth:** Supabase (email/password auth, Postgres, RLS enabled)
-- **Styling:** Tailwind CSS v4 (via `@tailwindcss/vite` plugin)
+- **Styling:** Tailwind CSS v4 (via `@tailwindcss/vite` plugin), class-based dark mode
 - **Hosting:** GitHub Pages — live at `https://seydacanyilmaz.github.io/sticker-album/`
 - **Version control:** Personal GitHub repo (public)
 - **Deploy:** `npm run deploy` — builds locally and pushes `dist/` to `gh-pages` branch via `gh-pages` package
@@ -80,7 +80,8 @@ All phases complete. App is live on GitHub Pages.
 - Donating or giving in a swap warns if the same sticker appears more than once in the current selection
 - Recording new stickers: no warnings at all (getting multiple copies in one batch is normal)
 - Receiving in a swap: warns if sticker already in collection; warns on duplicate selection
-- Donating/giving more than available: allowed but clamped to 0, user shown orange "naughty" message
+- **Over-selection (live, pre-confirm):** when the user selects a sticker to **give or donate more times than they currently own** (e.g. own 1, select 2; or own 0, select 1), a live warning shows *before* confirming — a ⚠️ next to the panel label plus the present-tense "naughty" message starting **"Your current record shows…"**. Implemented in `RecordDonated.jsx` and the "Stickers given" panel of `RecordTrade.jsx` (the "Stickers received" panel has no such warning — you can't over-receive). Computed in the page from the user's live `user_stickers` counts (`ownedCounts` map); the picker just renders the icon via the `labelWarning` prop. Note: `RecordDonated.jsx`'s picker was given a `label="Stickers to donate"` so the label-level icon has a home.
+- Donating/giving more than available: allowed but clamped to 0, user shown orange "naughty" message **after confirming**, starting **"Your previous record showed…"** (past tense — the count is now set to 0). Same message on `RecordDonated.jsx` and `RecordTrade.jsx`.
 
 ### Swap logic
 - "I can offer" = my count >= 2 AND their count = 0
@@ -97,12 +98,22 @@ All phases complete. App is live on GitHub Pages.
 
 ---
 
+## Dark mode
+- App-wide light/dark theming via Tailwind v4 **class-based** dark mode.
+- `src/index.css` enables it: `@custom-variant dark (&:where(.dark, .dark *));` — the variant keys off a `dark` class on `<html>`.
+- `index.html` has a small pre-paint inline script that adds the `dark` class **before React renders** (no flash of light): reads `localStorage.theme`, falling back to the OS `prefers-color-scheme: dark` when nothing is stored.
+- The toggle lives in the **hamburger dropdown** (`Nav.jsx`), labelled "Dark mode" with a 🌙/☀️ indicator. It flips the `dark` class on `documentElement` and persists the choice to `localStorage` (`'dark'` / `'light'`). Initial button state is read from the class the boot script already set.
+- Default behaviour: first visit follows the OS theme; after an explicit toggle the stored choice wins.
+- Every component carries `dark:` companion classes (surfaces, borders, text, inputs, tables, status badges, and the amber/green/red/blue alert banners). Sweep rule when styling new UI: any light class (`bg-white`, `text-gray-*`, colored `-50`/`-700` accents) needs a matching `dark:` sibling.
+
+---
+
 ## Folder structure
 ```
 src/
   components/
     Layout.jsx        — wraps all protected pages with Nav, max-w-3xl centered
-    Nav.jsx           — sticky top bar + hamburger dropdown, all items are <Link>s
+    Nav.jsx           — sticky top bar + hamburger dropdown (Links + Dark mode toggle + Sign out)
     StickerPicker.jsx — reusable autocomplete sticker input component
   lib/
     AuthContext.jsx       — auth session context (useAuth hook)
@@ -155,6 +166,8 @@ Props:
 - `warningIds` — array of sticker ids to show ⚠️
 - `warningTooltip` — tooltip text for warningIds warnings (default: "You only have 1 copy of this sticker")
 - `warnOnDuplicateSelection` — boolean, warns when same sticker added more than once in selection
+- `labelWarning` — boolean, shows a ⚠️ next to the label (used for the live over-selection warning)
+- `labelWarningTooltip` — tooltip text for the label warning
 
 Behaviour:
 - Suggestions filtered by code prefix, up to 20 shown in a compact grid

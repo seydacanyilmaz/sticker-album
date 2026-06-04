@@ -111,11 +111,11 @@ export default function RecordNew() {
     setLoading(false)
   }
 
-  if (loadingStickers) return <p className="text-gray-500">Loading stickers...</p>
+  if (loadingStickers) return <p className="text-gray-500 dark:text-gray-400">Loading stickers...</p>
 
   return (
     <div className="space-y-6">
-      <h2 className="text-xl font-bold text-gray-900">Record new stickers</h2>
+      <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Record new stickers</h2>
 
       <StickerPicker
         selected={selected}
@@ -135,44 +135,44 @@ export default function RecordNew() {
         <button
           onClick={handleUndo}
           disabled={history.length === 0}
-          className="px-4 py-2.5 bg-white hover:bg-gray-50 disabled:opacity-40 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
+          className="px-4 py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 transition-colors"
         >
           Undo
         </button>
         <button
           onClick={handleClear}
           disabled={selected.length === 0}
-          className="px-4 py-2.5 bg-white hover:bg-gray-50 disabled:opacity-40 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
+          className="px-4 py-2.5 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-40 text-gray-700 dark:text-gray-200 text-sm font-medium rounded-lg border border-gray-300 dark:border-gray-700 transition-colors"
         >
           Clear
         </button>
       </div>
 
       {error && (
-        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+        <p className="text-sm text-red-600 dark:text-red-300 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-800 rounded-lg px-3 py-2">{error}</p>
       )}
 
       {summary && (
         <div className="space-y-2">
           {summary.newStickers.length > 0 && (
-            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+            <p className="text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
               <span className="font-semibold">Added to album:</span> {summary.newStickers.join(', ')}
             </p>
           )}
           {summary.duplicateStickers.length > 0 && (
-            <p className="text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-3 py-2">
+            <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
               <span className="font-semibold">Duplicates:</span> {summary.duplicateStickers.join(', ')}
             </p>
           )}
           {summary.newStickers.length === 0 && summary.duplicateStickers.length === 0 && (
-            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+            <p className="text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
               Stickers recorded successfully!
             </p>
           )}
         </div>
       )}
 
-      <Link to="/" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+      <Link to="/" className="text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
         ← Back to dashboard
       </Link>
     </div>

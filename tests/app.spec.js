@@ -135,6 +135,32 @@ test('RecordDonated: donating sticker with no record shows naughty message', asy
   await expect(page.locator('text=naughty')).toBeVisible()
 })
 
+test('RecordDonated: selecting more than owned shows the live warning before confirm', async ({ page }) => {
+  await setCount(page, 'ENG1', 1)
+  await page.goto('record-donated')
+  await addSticker(page, 'ENG1')
+  await addSticker(page, 'ENG1') // selecting 2 when only 1 is held
+  // The pre-confirm warning appears without clicking Confirm.
+  await expect(page.locator('text=Your current record shows')).toBeVisible()
+})
+
+test('RecordDonated: selecting within owned count shows no live warning', async ({ page }) => {
+  await setCount(page, 'ENG1', 2)
+  await page.goto('record-donated')
+  await addSticker(page, 'ENG1')
+  await addSticker(page, 'ENG1') // selecting 2 when 2 are held → fine
+  await expect(page.locator('text=Your current record shows')).not.toBeVisible()
+})
+
+test('RecordDonated: post-confirm naughty message uses "previous record"', async ({ page }) => {
+  await setCount(page, 'ENG1', 1)
+  await page.goto('record-donated')
+  await addSticker(page, 'ENG1')
+  await addSticker(page, 'ENG1')
+  await page.click('button:has-text("Confirm")')
+  await expect(page.locator('text=Your previous record showed')).toBeVisible()
+})
+
 test('MyStickers: a reset sticker shows count 0 and Missing', async ({ page }) => {
   await resetToZero(page, 'ENG1')
   await page.goto('my-stickers')
@@ -204,6 +230,14 @@ test('RecordSwap: recording an outside swap updates counts and shows success', a
   const row = stickerRow(page, 'BRA1')
   await expect(row.locator('td').nth(2)).toContainText('1')
   await expect(row.locator('td').nth(3)).toContainText('Collected')
+})
+
+test('RecordSwap: giving more than owned shows the live warning before confirm', async ({ page }) => {
+  await setCount(page, 'ENG1', 1)
+  await page.goto('record-trade')
+  await addSticker(page, 'ENG1', 1) // given panel (index 1)
+  await addSticker(page, 'ENG1', 1) // giving 2 when only 1 is held
+  await expect(page.locator('text=Your current record shows')).toBeVisible()
 })
 
 // ─── MyStickers summary line ───────────────────────────────────────────────────

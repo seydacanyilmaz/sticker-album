@@ -6,8 +6,8 @@ import { Link } from 'react-router-dom'
 function Section({ title, children }) {
   return (
     <section className="space-y-2">
-      <h3 className="text-base font-semibold text-gray-900">{title}</h3>
-      <div className="text-sm text-gray-600 space-y-2">{children}</div>
+      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+      <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">{children}</div>
     </section>
   )
 }
@@ -22,8 +22,8 @@ export default function Help() {
   return (
     <div className="space-y-6">
       <div className="space-y-1">
-        <h2 className="text-xl font-bold text-gray-900">How it works</h2>
-        <p className="text-sm text-gray-600">
+        <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">How it works</h2>
+        <p className="text-sm text-gray-600 dark:text-gray-400">
           A quick guide to tracking your sticker album, recording swaps, and finding people to swap with.
         </p>
       </div>
@@ -34,9 +34,9 @@ export default function Help() {
           <span className="font-semibold"> count</span> of how many copies you have:
         </p>
         <ul className="space-y-1 pl-1">
-          <li><Badge color="bg-red-50 text-red-700">Missing</Badge> &nbsp;count is 0 — you don't have it yet</li>
-          <li><Badge color="bg-green-50 text-green-700">Collected</Badge> &nbsp;count is 1 — you have exactly one</li>
-          <li><Badge color="bg-blue-50 text-blue-700">Duplicate</Badge> &nbsp;count is 2 or more — you have spares to swap or give away</li>
+          <li><Badge color="bg-red-50 dark:bg-red-950/50 text-red-700 dark:text-red-300">Missing</Badge> &nbsp;count is 0 — you don't have it yet</li>
+          <li><Badge color="bg-green-50 dark:bg-green-950/50 text-green-700 dark:text-green-300">Collected</Badge> &nbsp;count is 1 — you have exactly one</li>
+          <li><Badge color="bg-blue-50 dark:bg-blue-950/50 text-blue-700 dark:text-blue-300">Duplicate</Badge> &nbsp;count is 2 or more — you have spares to swap or give away</li>
         </ul>
         <p>Each sticker has a code (e.g. <span className="font-mono font-medium">ENG3</span>) and a category (the country).</p>
       </Section>
@@ -83,11 +83,11 @@ export default function Help() {
           <span className="font-semibold"> "Someone outside this app"</span> — your counts still update, but no one gets
           a notification.
         </p>
-        <p className="text-amber-800">
+        <p className="text-amber-800 dark:text-amber-300">
           Heads up: the app warns you if you try to give away a sticker you only have one of, or the same sticker twice
           in one swap. It never blocks you — it's just a nudge to double-check.
         </p>
-        <p className="bg-blue-50 border border-blue-200 rounded-lg px-3 py-2 text-blue-900">
+        <p className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 text-blue-900 dark:text-blue-200">
           <span className="font-semibold">Important — recording a swap only updates your own records.</span> When you
           record a swap with another user, it does <span className="font-semibold">not</span> change their collection —
           it simply sends them a notification. The other person still needs to update their own records. So when a swap
@@ -126,7 +126,7 @@ export default function Help() {
         </p>
       </Section>
 
-      <Link to="/" className="inline-block text-sm text-gray-500 hover:text-gray-700 transition-colors">
+      <Link to="/" className="inline-block text-sm text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">
         ← Back to dashboard
       </Link>
     </div>
