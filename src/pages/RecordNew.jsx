@@ -1,10 +1,9 @@
 // RecordNew.jsx
-// Page for recording newly obtained stickers.
-// Increments the count for each selected sticker by 1 (or more if added multiple times).
-// No warnings for duplicate selections — getting multiple copies in one batch is normal.
+// Records newly obtained stickers — increments count per sticker.
+// Shows a post-confirm summary of new vs duplicate stickers.
 
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useProfile } from '../lib/ProfileContext'
 import { useStickers } from '../lib/StickersContext'
@@ -13,44 +12,37 @@ import StickerPicker from '../components/StickerPicker'
 export default function RecordNew() {
   const { profile } = useProfile()
   const navigate = useNavigate()
-  const { stickers } = useStickers()
+  const { stickers, loadingStickers } = useStickers()
 
-  const [selected, setSelected] = useState([])   // array of selected sticker objects
+  const [selected, setSelected] = useState([])
+  const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
-  const [success, setSuccess] = useState(false)
-
-  // Keep a history of states for undo functionality
-  // Each entry is a snapshot of selected before a change
-  const [history, setHistory] = useState([])
+  const [summary, setSummary] = useState(null)
 
   function handleSelect(sticker) {
-    // Save current state to history before making a change
     setHistory((prev) => [...prev, selected])
     setSelected((prev) => [...prev, sticker])
-    setSuccess(false)
+    setSummary(null)
   }
 
   function handleRemove(index) {
-    // Save current state to history before making a change
     setHistory((prev) => [...prev, selected])
     setSelected((prev) => prev.filter((_, i) => i !== index))
-    setSuccess(false)
+    setSummary(null)
   }
 
   function handleUndo() {
     if (history.length === 0) return
-    // Restore the last saved state
-    const previous = history[history.length - 1]
-    setSelected(previous)
+    setSelected(history[history.length - 1])
     setHistory((prev) => prev.slice(0, -1))
-    setSuccess(false)
+    setSummary(null)
   }
 
   function handleClear() {
     setHistory((prev) => [...prev, selected])
     setSelected([])
-    setSuccess(false)
+    setSummary(null)
   }
 
   async function handleConfirm() {
@@ -58,16 +50,28 @@ export default function RecordNew() {
     setLoading(true)
     setError(null)
 
-    // Count how many times each sticker id appears in the selection
-    // e.g. if ENG1 was added twice, its delta will be 2
     const deltas = {}
     for (const sticker of selected) {
       deltas[sticker.id] = (deltas[sticker.id] || 0) + 1
     }
 
-    // For each sticker, either update the existing row or insert a new one
+    const codeById = {}
+    for (const sticker of selected) codeById[sticker.id] = sticker.code
+
+    const stickerIds = Object.keys(deltas)
+
+    const { data: existingRows, error: fetchError } = await supabase
+      .from('user_stickers')
+      .select('sticker_id, count')
+      .eq('user_id', profile.id)
+      .in('sticker_id', stickerIds)
+
+    if (fetchError) { setError('Something went wrong. Please try again.'); setLoading(false); return }
+
+    const oldCounts = {}
+    for (const row of existingRows) oldCounts[row.sticker_id] = row.count
+
     for (const [stickerId, delta] of Object.entries(deltas)) {
-      // Check if a row already exists for this user + sticker
       const { data: existing } = await supabase
         .from('user_stickers')
         .select('id, count')
@@ -76,42 +80,42 @@ export default function RecordNew() {
         .single()
 
       if (existing) {
-        // Row exists — increment the count
         const { error: updateError } = await supabase
           .from('user_stickers')
           .update({ count: existing.count + delta })
           .eq('id', existing.id)
-
-        if (updateError) {
-          setError('Something went wrong. Please try again.')
-          setLoading(false)
-          return
-        }
+        if (updateError) { setError('Something went wrong. Please try again.'); setLoading(false); return }
       } else {
-        // No row yet — insert one with the delta as the starting count
         const { error: insertError } = await supabase
           .from('user_stickers')
           .insert({ user_id: profile.id, sticker_id: stickerId, count: delta })
-
-        if (insertError) {
-          setError('Something went wrong. Please try again.')
-          setLoading(false)
-          return
-        }
+        if (insertError) { setError('Something went wrong. Please try again.'); setLoading(false); return }
       }
     }
 
-    // All done — clear the selection and show success message
+    const newStickers = []
+    const duplicateStickers = []
+
+    for (const [stickerId, delta] of Object.entries(deltas)) {
+      const oldCount = oldCounts[stickerId] ?? 0
+      const code = codeById[stickerId]
+      const newCount = oldCount === 0 ? 1 : 0
+      const dupCount = delta - newCount
+      if (newCount > 0) newStickers.push(code)
+      for (let i = 0; i < dupCount; i++) duplicateStickers.push(code)
+    }
+
     setSelected([])
     setHistory([])
-    setSuccess(true)
+    setSummary({ newStickers, duplicateStickers })
     setLoading(false)
   }
 
+  if (loadingStickers) return <p className="text-gray-500">Loading stickers...</p>
+
   return (
-    <div>
-      <h2>Record new stickers</h2>
-      <p>Stickers loaded: {stickers.length}</p>
+    <div className="space-y-6">
+      <h2 className="text-xl font-bold text-gray-900">Record new stickers</h2>
 
       <StickerPicker
         selected={selected}
@@ -120,32 +124,57 @@ export default function RecordNew() {
         warnOnDuplicateSelection={false}
       />
 
-      {/* Action buttons */}
-      <div>
+      <div className="flex gap-2">
         <button
           onClick={handleConfirm}
           disabled={loading || selected.length === 0}
+          className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors"
         >
           {loading ? 'Saving...' : 'Confirm'}
         </button>
         <button
           onClick={handleUndo}
           disabled={history.length === 0}
+          className="px-4 py-2.5 bg-white hover:bg-gray-50 disabled:opacity-40 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
         >
           Undo
         </button>
         <button
           onClick={handleClear}
           disabled={selected.length === 0}
+          className="px-4 py-2.5 bg-white hover:bg-gray-50 disabled:opacity-40 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
         >
           Clear
         </button>
       </div>
 
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      {success && <p style={{ color: 'green' }}>Stickers recorded successfully!</p>}
+      {error && (
+        <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{error}</p>
+      )}
 
-      <button onClick={() => navigate('/')}>Back to dashboard</button>
+      {summary && (
+        <div className="space-y-2">
+          {summary.newStickers.length > 0 && (
+            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              <span className="font-semibold">Added to album:</span> {summary.newStickers.join(', ')}
+            </p>
+          )}
+          {summary.duplicateStickers.length > 0 && (
+            <p className="text-sm text-gray-700 bg-gray-100 border border-gray-200 rounded-lg px-3 py-2">
+              <span className="font-semibold">Duplicates:</span> {summary.duplicateStickers.join(', ')}
+            </p>
+          )}
+          {summary.newStickers.length === 0 && summary.duplicateStickers.length === 0 && (
+            <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+              Stickers recorded successfully!
+            </p>
+          )}
+        </div>
+      )}
+
+      <Link to="/" className="text-sm text-gray-500 hover:text-gray-700 transition-colors">
+        ← Back to dashboard
+      </Link>
     </div>
   )
 }

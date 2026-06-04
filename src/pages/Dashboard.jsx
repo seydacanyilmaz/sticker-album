@@ -1,96 +1,81 @@
 // Dashboard.jsx
-// The main page users see after logging in.
-// Shows swap suggestions with other users and navigation buttons.
+// Main page after login. Shows swap suggestions, trade notifications, and nav buttons.
 
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useProfile } from '../lib/ProfileContext'
+import { useStickers } from '../lib/StickersContext'
 
 export default function Dashboard() {
   const { profile, loadingProfile } = useProfile()
+  const { stickers, loadingStickers } = useStickers()
   const navigate = useNavigate()
 
-  // Will hold swap summary data for each other user
   const [swapSummaries, setSwapSummaries] = useState([])
   const [loadingSwaps, setLoadingSwaps] = useState(true)
 
-  // Will hold any pending trade notifications for the current user
   const [notifications, setNotifications] = useState([])
   const [loadingNotifications, setLoadingNotifications] = useState(true)
 
+  const [selectedSwap, setSelectedSwap] = useState(null)
+
   useEffect(() => {
-    if (!profile) return
+    if (!profile || loadingStickers) return
     fetchSwapSummaries()
     fetchNotifications()
-  }, [profile])
+  }, [profile, loadingStickers])
 
   async function fetchSwapSummaries() {
     setLoadingSwaps(true)
 
-    // Step 1: get all other users' profiles
+    const stickerById = {}
+    for (const s of stickers) stickerById[s.id] = s
+
     const { data: otherProfiles, error: profilesError } = await supabase
       .from('profiles')
       .select('id, username')
-      .neq('id', profile.id) // exclude the current user
+      .neq('id', profile.id)
 
-    if (profilesError) {
-      console.error('Error fetching profiles:', profilesError.message)
-      setLoadingSwaps(false)
-      return
-    }
+    if (profilesError) { console.error(profilesError.message); setLoadingSwaps(false); return }
 
-    // Step 2: get all user_stickers rows for the current album
-    // We fetch all users' stickers at once and filter in JavaScript
     const { data: allUserStickers, error: stickersError } = await supabase
       .from('user_stickers')
       .select('user_id, sticker_id, count')
 
-    if (stickersError) {
-      console.error('Error fetching stickers:', stickersError.message)
-      setLoadingSwaps(false)
-      return
-    }
+    if (stickersError) { console.error(stickersError.message); setLoadingSwaps(false); return }
 
-    // Step 3: build a lookup map for quick access
-    // Format: { user_id: { sticker_id: count } }
     const stickerMap = {}
     for (const row of allUserStickers) {
       if (!stickerMap[row.user_id]) stickerMap[row.user_id] = {}
       stickerMap[row.user_id][row.sticker_id] = row.count
     }
 
-    // Step 4: calculate swap summaries for each other user
-    // A swap is possible when:
-    // - I have count >= 2 (duplicate) AND they have count = 0 (missing) → I can offer it
-    // - They have count >= 2 (duplicate) AND I have count = 0 (missing) → they can offer it
     const myStickers = stickerMap[profile.id] || {}
 
     const summaries = otherProfiles.map((otherUser) => {
       const theirStickers = stickerMap[otherUser.id] || {}
+      const allStickerIds = new Set([...Object.keys(myStickers), ...Object.keys(theirStickers)])
 
-      // Get all sticker IDs that either user has a record for
-      const allStickerIds = new Set([
-        ...Object.keys(myStickers),
-        ...Object.keys(theirStickers),
-      ])
-
-      let iCanOffer = 0   // my duplicates they are missing
-      let theyCanOffer = 0 // their duplicates I am missing
+      const iCanOfferStickers = []
+      const theyCanOfferMeStickers = []
 
       for (const stickerId of allStickerIds) {
         const myCount = myStickers[stickerId] ?? 0
         const theirCount = theirStickers[stickerId] ?? 0
-
-        if (myCount >= 2 && theirCount === 0) iCanOffer++
-        if (theirCount >= 2 && myCount === 0) theyCanOffer++
+        const sticker = stickerById[stickerId]
+        if (!sticker) continue
+        if (myCount >= 2 && theirCount === 0) iCanOfferStickers.push(sticker)
+        if (theirCount >= 2 && myCount === 0) theyCanOfferMeStickers.push(sticker)
       }
 
       return {
         userId: otherUser.id,
         username: otherUser.username,
-        iCanOffer,
-        theyCanOffer,
+        iCanOffer: iCanOfferStickers.length,
+        theyCanOffer: theyCanOfferMeStickers.length,
+        iCanOfferStickers,
+        theyCanOfferMeStickers,
       }
     })
 
@@ -100,9 +85,6 @@ export default function Dashboard() {
 
   async function fetchNotifications() {
     setLoadingNotifications(true)
-
-    // Fetch pending trade notifications addressed to the current user
-    // Also fetch the sender's profile so we can show their username
     const { data, error } = await supabase
       .from('trade_notifications')
       .select('id, changes, created_at, from_user_id, profiles!from_user_id(username)')
@@ -110,25 +92,15 @@ export default function Dashboard() {
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
 
-    if (error) {
-      console.error('Error fetching notifications:', error.message)
-    } else {
-      setNotifications(data)
-    }
+    if (error) console.error(error.message)
+    else setNotifications(data)
     setLoadingNotifications(false)
   }
 
   async function handleNotification(notificationId, action) {
-    // action is either 'accepted' or 'dismissed'
-
     if (action === 'accepted') {
-      // Find the notification so we can apply the changes
       const notification = notifications.find((n) => n.id === notificationId)
-
-      // Apply each sticker change to the current user's collection
-      // changes is an array of { sticker_id, delta } where delta is +1 or -1
       for (const change of notification.changes) {
-        // First check if a row already exists for this user + sticker
         const { data: existing } = await supabase
           .from('user_stickers')
           .select('id, count')
@@ -137,81 +109,170 @@ export default function Dashboard() {
           .single()
 
         if (existing) {
-          // Update the existing row
-          await supabase
-            .from('user_stickers')
-            .update({ count: existing.count + change.delta })
-            .eq('id', existing.id)
+          await supabase.from('user_stickers').update({ count: existing.count + change.delta }).eq('id', existing.id)
         } else {
-          // Insert a new row with the delta as the starting count
-          await supabase
-            .from('user_stickers')
-            .insert({ user_id: profile.id, sticker_id: change.sticker_id, count: change.delta })
+          await supabase.from('user_stickers').insert({ user_id: profile.id, sticker_id: change.sticker_id, count: change.delta })
         }
       }
     }
 
-    // Mark the notification as accepted or dismissed
-    await supabase
-      .from('trade_notifications')
-      .update({ status: action })
-      .eq('id', notificationId)
-
-    // Remove it from the local list
+    await supabase.from('trade_notifications').update({ status: action }).eq('id', notificationId)
     setNotifications((prev) => prev.filter((n) => n.id !== notificationId))
+    fetchSwapSummaries()
   }
 
-  if (loadingProfile) return <p>Loading...</p>
+  function handleStartTrade(swap) {
+    setSelectedSwap(null)
+    navigate('/record-trade', {
+      state: {
+        selectedReceived: swap.theyCanOfferMeStickers,
+        selectedGiven: swap.iCanOfferStickers,
+        tradedWithUserId: swap.userId,
+      },
+    })
+  }
+
+  if (loadingProfile) return <p className="p-8 text-gray-500">Loading...</p>
 
   return (
-    <div>
-      <h1>Welcome, {profile?.username}</h1>
+    <div className="space-y-8">
+      <h1 className="text-2xl font-bold text-gray-900">Welcome, {profile?.username}</h1>
 
       {/* Trade notification banners */}
       {!loadingNotifications && notifications.length > 0 && (
-        <div>
-          <h2>Pending trade notifications</h2>
+        <section className="space-y-3">
+          <h2 className="text-lg font-semibold text-gray-800">Pending trade notifications</h2>
           {notifications.map((notification) => (
-            <div key={notification.id}>
-              <p>
-                {notification.profiles.username} recorded a trade with you —
-                they received {notification.changes.filter(c => c.delta < 0).length} stickers
-                and gave you {notification.changes.filter(c => c.delta > 0).length} stickers.
+            <div key={notification.id} className="bg-amber-50 border border-amber-200 rounded-xl p-4 space-y-3">
+              <p className="text-sm text-amber-900">
+                <span className="font-semibold">{notification.profiles.username}</span> recorded a trade with you —
+                they received <span className="font-semibold">{notification.changes.filter(c => c.delta < 0).length}</span> stickers
+                and gave you <span className="font-semibold">{notification.changes.filter(c => c.delta > 0).length}</span> stickers.
                 Apply these changes to your collection?
               </p>
-              <button onClick={() => handleNotification(notification.id, 'accepted')}>
-                Accept
-              </button>
-              <button onClick={() => handleNotification(notification.id, 'dismissed')}>
-                Dismiss
-              </button>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleNotification(notification.id, 'accepted')}
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={() => handleNotification(notification.id, 'dismissed')}
+                  className="px-4 py-2 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
+                >
+                  Dismiss
+                </button>
+              </div>
             </div>
           ))}
-        </div>
+        </section>
       )}
 
       {/* Swap summaries */}
-      <div>
-        <h2>Swap suggestions</h2>
+      <section className="space-y-3">
+        <h2 className="text-lg font-semibold text-gray-800">Swap suggestions</h2>
         {loadingSwaps ? (
-          <p>Calculating swaps...</p>
+          <p className="text-sm text-gray-500">Calculating swaps...</p>
+        ) : swapSummaries.length === 0 ? (
+          <p className="text-sm text-gray-500">No swap suggestions yet.</p>
         ) : (
-          swapSummaries.map((summary) => (
-            <p key={summary.userId}>
-              You can offer <strong>{summary.iCanOffer}</strong> stickers
-              to <strong>{summary.username}</strong> and they have{' '}
-              <strong>{summary.theyCanOffer}</strong> stickers you need.
-            </p>
-          ))
+          <div className="space-y-2">
+            {swapSummaries.map((summary) => (
+              <div key={summary.userId} className="bg-white border border-gray-200 rounded-xl px-4 py-3 flex items-center justify-between gap-4">
+                <p className="text-sm text-gray-700">
+                  You can offer <span className="font-semibold text-blue-700">{summary.iCanOffer}</span> stickers
+                  to <span className="font-semibold">{summary.username}</span> and they have{' '}
+                  <span className="font-semibold text-blue-700">{summary.theyCanOffer}</span> you need.
+                </p>
+                <button
+                  onClick={() => setSelectedSwap(summary)}
+                  className="shrink-0 px-3 py-1.5 text-sm text-blue-600 hover:bg-blue-50 border border-blue-200 rounded-lg transition-colors font-medium"
+                >
+                  See details
+                </button>
+              </div>
+            ))}
+          </div>
         )}
-      </div>
+      </section>
 
       {/* Navigation buttons */}
-      <div>
-        <button onClick={() => navigate('/record-new')}>Record new stickers</button>
-        <button onClick={() => navigate('/record-trade')}>Record a trade</button>
-        <button onClick={() => navigate('/record-donated')}>Record donated stickers</button>
-      </div>
+      <section className="grid grid-cols-2 gap-3">
+        {[
+          { label: 'Record new stickers', path: '/record-new' },
+          { label: 'Record a trade', path: '/record-trade' },
+          { label: 'Record donated stickers', path: '/record-donated' },
+          { label: 'My Stickers', path: '/my-stickers' },
+        ].map(({ label, path }) => (
+          <Link
+            key={path}
+            to={path}
+            className="block py-3 px-4 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium text-sm rounded-xl transition-colors"
+          >
+            {label}
+          </Link>
+        ))}
+      </section>
+
+      {/* Swap detail modal */}
+      {selectedSwap && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 px-4"
+          onClick={() => setSelectedSwap(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[80vh] overflow-y-auto p-6 space-y-5"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="text-lg font-semibold text-gray-900">
+              Swap details with {selectedSwap.username}
+            </h3>
+
+            <div className="space-y-1">
+              <h4 className="text-sm font-semibold text-gray-700">
+                You can offer ({selectedSwap.iCanOffer}):
+              </h4>
+              {selectedSwap.iCanOfferStickers.length > 0 ? (
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {selectedSwap.iCanOfferStickers.map(s => s.code).join(', ')}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-400">Nothing to offer.</p>
+              )}
+            </div>
+
+            <div className="space-y-1">
+              <h4 className="text-sm font-semibold text-gray-700">
+                {selectedSwap.username} can offer you ({selectedSwap.theyCanOffer}):
+              </h4>
+              {selectedSwap.theyCanOfferMeStickers.length > 0 ? (
+                <p className="text-sm text-gray-600 leading-relaxed">
+                  {selectedSwap.theyCanOfferMeStickers.map(s => s.code).join(', ')}
+                </p>
+              ) : (
+                <p className="text-sm text-gray-400">Nothing to offer.</p>
+              )}
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={() => handleStartTrade(selectedSwap)}
+                disabled={selectedSwap.iCanOffer === 0 && selectedSwap.theyCanOffer === 0}
+                className="flex-1 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white text-sm font-medium rounded-lg transition-colors"
+              >
+                Start a trade with these stickers
+              </button>
+              <button
+                onClick={() => setSelectedSwap(null)}
+                className="px-4 py-2.5 bg-white hover:bg-gray-50 text-gray-700 text-sm font-medium rounded-lg border border-gray-300 transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

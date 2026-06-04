@@ -1,15 +1,15 @@
 // StickerPicker.jsx
 // Reusable component for selecting stickers.
-// Shows an autocomplete input, a compact suggestion grid, and selected sticker labels.
-// Used on all three Record pages.
+// Shows an autocomplete input, a compact suggestion grid, and selected sticker chips.
 //
 // Props:
-//   label                  - heading shown above the input (e.g. "Stickers received")
-//   selected               - array of sticker objects currently selected
-//   onSelect               - function called when a sticker is added
-//   onRemove               - function called when a sticker label's ✕ is clicked
-//   warningIds             - optional array of sticker ids to highlight (count=1 warning)
-//   warnOnDuplicateSelection - if true, warns when the same sticker is added more than once
+//   label                    - heading shown above the input
+//   selected                 - array of sticker objects currently selected
+//   onSelect                 - called when a sticker is added
+//   onRemove                 - called when a chip's ✕ is clicked
+//   warningIds               - optional sticker ids to highlight with ⚠️
+//   warningTooltip           - tooltip text for warningIds warnings
+//   warnOnDuplicateSelection - warns when the same sticker is added more than once
 
 import { useState, useRef } from 'react'
 import { useStickers } from '../lib/StickersContext'
@@ -20,14 +20,16 @@ export default function StickerPicker({
   onSelect,
   onRemove,
   warningIds = [],
+  warningTooltip = 'You only have 1 copy of this sticker',
   warnOnDuplicateSelection = false,
 }) {
-  const { stickers } = useStickers()
+  const { stickers, loadingStickers } = useStickers()
   const [inputValue, setInputValue] = useState('')
   const [suggestions, setSuggestions] = useState([])
   const inputRef = useRef(null)
 
-  // Called every time the user types in the input
+  if (loadingStickers) return <p className="text-gray-500 text-sm">Loading stickers...</p>
+
   function handleInputChange(e) {
     const value = e.target.value
     setInputValue(value)
@@ -37,47 +39,33 @@ export default function StickerPicker({
       return
     }
 
-    // Filter stickers whose code starts with the typed value (case insensitive)
     const filtered = stickers.filter((s) =>
       s.code.toLowerCase().startsWith(value.toLowerCase())
     )
-
-    // Show up to 20 suggestions
     setSuggestions(filtered.slice(0, 20))
   }
 
-  // Called when the user clicks a suggestion or presses Enter
   function handleSelect(sticker) {
     onSelect(sticker)
     setInputValue('')
     setSuggestions([])
-    inputRef.current?.focus() // return focus so user can keep typing
+    inputRef.current?.focus()
   }
 
-  // Called when the user presses a key in the input
   function handleKeyDown(e) {
-    // If Enter is pressed and there is exactly one suggestion, select it
-    if (e.key === 'Enter' && suggestions.length === 1) {
-      handleSelect(suggestions[0])
-    }
-    // If Escape is pressed, clear suggestions
-    if (e.key === 'Escape') {
-      setSuggestions([])
-    }
+    if (e.key === 'Enter' && suggestions.length === 1) handleSelect(suggestions[0])
+    if (e.key === 'Escape') setSuggestions([])
   }
 
-  // Build a set of how many times each sticker id appears in selected
-  // Used to warn when the same sticker has been added more than once
   const selectionCounts = {}
   for (const s of selected) {
     selectionCounts[s.id] = (selectionCounts[s.id] || 0) + 1
   }
 
   return (
-    <div>
-      {label && <h3>{label}</h3>}
+    <div className="space-y-3">
+      {label && <h3 className="text-base font-semibold text-gray-700">{label}</h3>}
 
-      {/* Autocomplete input */}
       <input
         ref={inputRef}
         type="text"
@@ -86,19 +74,21 @@ export default function StickerPicker({
         onKeyDown={handleKeyDown}
         placeholder="Type a sticker code e.g. ENG1"
         autoComplete="off"
+        className="w-full px-3 py-2.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
       />
 
-      {/* Suggestion grid — compact layout, up to 20 items */}
+      {/* Suggestion grid */}
       {suggestions.length > 0 && (
-        <div>
+        <div className="flex flex-wrap gap-1.5">
           {suggestions.map((sticker) => {
-            // Split the code into its letter prefix and number suffix
-            // e.g. 'ENG10' → letters: 'ENG', numbers: '10'
             const letters = sticker.code.replace(/[0-9]/g, '')
             const numbers = sticker.code.replace(/[^0-9]/g, '')
-
             return (
-              <button key={sticker.id} onClick={() => handleSelect(sticker)}>
+              <button
+                key={sticker.id}
+                onClick={() => handleSelect(sticker)}
+                className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-800 rounded-md text-sm transition-colors"
+              >
                 {letters}<strong>{numbers}</strong>
               </button>
             )
@@ -106,26 +96,38 @@ export default function StickerPicker({
         </div>
       )}
 
-      {/* Selected sticker labels */}
+      {/* Selected chips */}
       {selected.length > 0 && (
-        <div>
+        <div className="flex flex-wrap gap-1.5">
           {selected.map((sticker, index) => {
-            // Warn if this sticker's count in the selection is more than 1
             const isDuplicateSelection = warnOnDuplicateSelection && selectionCounts[sticker.id] > 1
-
-            // Warn if this sticker has count=1 in the user's collection (low stock)
-            const isLowStock = warningIds.includes(sticker.id)
+            const isWarned = warningIds.includes(sticker.id)
+            const letters = sticker.code.replace(/[0-9]/g, '')
+            const numbers = sticker.code.replace(/[^0-9]/g, '')
+            const hasWarning = isDuplicateSelection || isWarned
 
             return (
-              <span key={`${sticker.id}-${index}`}>
-                {sticker.code.replace(/[0-9]/g, '')}<strong>{sticker.code.replace(/[^0-9]/g, '')}</strong>
+              <span
+                key={`${sticker.id}-${index}`}
+                className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-md text-sm ${
+                  hasWarning
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-gray-100 text-gray-800'
+                }`}
+              >
+                {letters}<strong>{numbers}</strong>
                 {isDuplicateSelection && (
-                  <span title="You have selected this sticker more than once"> ⚠️</span>
+                  <span title="You have selected this sticker more than once">⚠️</span>
                 )}
-                {isLowStock && (
-                  <span title="You only have 1 copy of this sticker"> ⚠️</span>
+                {isWarned && (
+                  <span title={warningTooltip}>⚠️</span>
                 )}
-                <button onClick={() => onRemove(index)}>✕</button>
+                <button
+                  onClick={() => onRemove(index)}
+                  className="ml-0.5 text-gray-400 hover:text-gray-700 transition-colors leading-none"
+                >
+                  ✕
+                </button>
               </span>
             )
           })}

@@ -29,7 +29,7 @@ export default function App() {
   if (loading) return null
 
   return (
-    <BrowserRouter>
+    <BrowserRouter basename="/sticker-album">
       <Routes>
         {/* Login page — redirect to dashboard if already logged in */}
         <Route
