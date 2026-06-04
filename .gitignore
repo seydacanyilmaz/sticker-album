@@ -11,7 +11,9 @@ node_modules
 dist
 dist-ssr
 .env
+.env.test
 *.local
+playwright/.auth/
 
 # Editor directories and files
 .vscode/*
