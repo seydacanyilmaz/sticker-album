@@ -2,8 +2,8 @@
 // Records donated stickers — decrements count.
 // Warns on count=1 stickers and duplicate selections.
 
-import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useProfile } from '../lib/ProfileContext'
 import { useStickers } from '../lib/StickersContext'
@@ -11,7 +11,6 @@ import StickerPicker from '../components/StickerPicker'
 
 export default function RecordDonated() {
   const { profile } = useProfile()
-  const navigate = useNavigate()
   const { loadingStickers } = useStickers()
 
   const [selected, setSelected] = useState([])
@@ -23,12 +22,7 @@ export default function RecordDonated() {
   const [success, setSuccess] = useState(false)
   const [clampedCodes, setClampedCodes] = useState([])
 
-  useEffect(() => {
-    if (!profile) return
-    fetchWarningIds()
-  }, [profile])
-
-  async function fetchWarningIds() {
+  const fetchWarningIds = useCallback(async () => {
     const { data } = await supabase
       .from('user_stickers')
       .select('sticker_id, count')
@@ -39,7 +33,15 @@ export default function RecordDonated() {
     for (const r of rows) counts[r.sticker_id] = r.count
     setOwnedCounts(counts)
     setWarningIds(rows.filter((r) => r.count === 1).map((r) => r.sticker_id))
-  }
+  }, [profile])
+
+  useEffect(() => {
+    if (!profile) return
+    let active = true
+    async function load() { if (active) await fetchWarningIds() }
+    load()
+    return () => { active = false }
+  }, [profile, fetchWarningIds])
 
   function clearFeedback() { setSuccess(false); setClampedCodes([]) }
 

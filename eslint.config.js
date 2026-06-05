@@ -18,4 +18,11 @@ export default defineConfig([
       parserOptions: { ecmaFeatures: { jsx: true } },
     },
   },
+  {
+    // Test files and config scripts run in Node, not the browser.
+    files: ['tests/**/*.{js,jsx}', '*.config.js'],
+    languageOptions: {
+      globals: globals.node,
+    },
+  },
 ])

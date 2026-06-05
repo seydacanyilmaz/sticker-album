@@ -3,7 +3,7 @@
 // Shows a post-confirm summary of new vs duplicate stickers.
 
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useProfile } from '../lib/ProfileContext'
 import { useStickers } from '../lib/StickersContext'
@@ -11,8 +11,7 @@ import StickerPicker from '../components/StickerPicker'
 
 export default function RecordNew() {
   const { profile } = useProfile()
-  const navigate = useNavigate()
-  const { stickers, loadingStickers } = useStickers()
+  const { loadingStickers } = useStickers()
 
   const [selected, setSelected] = useState([])
   const [history, setHistory] = useState([])
@@ -43,6 +42,42 @@ export default function RecordNew() {
     setHistory((prev) => [...prev, selected])
     setSelected([])
     setSummary(null)
+  }
+
+  // Appends a snapshot row for the PPNS graph. Failure here never blocks the
+  // record itself (counts are already saved) — we just log and move on.
+  async function logPpnsSnapshot(newCount) {
+    try {
+      const batchSize = selected.length
+
+      // Running cumulative pack total = previous snapshot's total + this batch.
+      const { data: lastSnap } = await supabase
+        .from('progress_snapshots')
+        .select('pack_stickers_total')
+        .eq('user_id', profile.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      const packStickersTotal = (lastSnap?.pack_stickers_total ?? 0) + batchSize
+
+      // Running distinct count (stickers with at least one copy).
+      const { count: uniqueCount } = await supabase
+        .from('user_stickers')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+        .gte('count', 1)
+
+      await supabase.from('progress_snapshots').insert({
+        user_id: profile.id,
+        batch_size: batchSize,
+        new_count: newCount,
+        pack_stickers_total: packStickersTotal,
+        unique_count: uniqueCount ?? 0,
+      })
+    } catch (e) {
+      console.error('Failed to log PPNS snapshot:', e)
+    }
   }
 
   async function handleConfirm() {
@@ -105,6 +140,14 @@ export default function RecordNew() {
       for (let i = 0; i < dupCount; i++) duplicateStickers.push(code)
     }
 
+    // --- PPNS snapshot ---
+    // Log one data point for the Price-Per-New-Sticker graph. Only recording new
+    // stickers drives this curve (buying packs), so each Confirm appends a snapshot.
+    // Each row is self-contained: batch_size + new_count give THIS batch's PPNS
+    // (immune to donations/swaps between records); pack_stickers_total is the
+    // running pack-spend X-axis; unique_count is the running distinct total.
+    await logPpnsSnapshot(newStickers.length)
+
     setSelected([])
     setHistory([])
     setSummary({ newStickers, duplicateStickers })
@@ -116,6 +159,12 @@ export default function RecordNew() {
   return (
     <div className="space-y-6">
       <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">Record new stickers</h2>
+
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        Tip: for a smoother{' '}
+        <Link to="/ppns" className="underline hover:text-gray-700 dark:hover:text-gray-200">PPNS graph</Link>,
+        confirm in smaller batches (~20–30) rather than one huge batch. It still works either way.
+      </p>
 
       <StickerPicker
         selected={selected}

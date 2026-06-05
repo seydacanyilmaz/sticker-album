@@ -14,14 +14,16 @@ import { test, expect } from '@playwright/test'
 import { addSticker, stickerRow, resetToZero } from './helpers'
 
 // Log in on a clean page and return the logged-in user's username (from the welcome header).
+// The dashboard heading renders as "Welcome," for a moment before the profile loads, so we
+// wait for a non-empty username to avoid reading "" (which would break later selectOption).
 async function login(page, email, password) {
   await page.goto('.')
   await page.fill('input[type="email"]', email)
   await page.fill('input[type="password"]', password)
   await page.click('button:has-text("Sign in")')
-  await page.waitForSelector('h1:has-text("Welcome")', { timeout: 15000 })
-  const heading = await page.locator('h1').innerText()
-  return heading.replace('Welcome,', '').trim()
+  const heading = page.locator('h1', { hasText: 'Welcome,' })
+  await expect(heading).toHaveText(/Welcome,\s+\S+/, { timeout: 15000 })
+  return (await heading.innerText()).replace('Welcome,', '').trim()
 }
 
 // Dismiss every pending swap notification currently showing on the dashboard.

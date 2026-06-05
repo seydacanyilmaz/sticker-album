@@ -118,6 +118,33 @@ export default function Help() {
         <p>This page updates live, so if you accept a swap it reflects right away.</p>
       </Section>
 
+      <Section title="Price per new sticker (PPNS)">
+        <p>
+          This graph answers one question: <span className="font-semibold">when should I stop buying packs?</span> Early
+          on, almost every sticker in a pack is new. But the more of the album you have, the more packs you burn just to
+          find one you're missing — so the real price of each <span className="font-semibold">new</span> sticker keeps
+          climbing.
+        </p>
+        <p>
+          Every time you <span className="font-semibold">Record new stickers</span>, the app logs a point: how many you
+          added and how many were new. From that it works out the price per new sticker for that batch. When the line
+          rises above the <span className="font-semibold">direct-buy price</span> (the publisher's price for buying exact
+          missing stickers), packs stop being worth it — switch to swaps or buy the ones you need directly.
+        </p>
+        <p className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 text-blue-900 dark:text-blue-200">
+          For a smoother graph, record in <span className="font-semibold">smaller batches</span> (around 20–30 at a time)
+          rather than one giant batch. The pack price, stickers per pack, and direct-buy price are all adjustable on the
+          page. Only <span className="font-semibold">Record new stickers</span> affects this graph — swaps and donations
+          don't.
+        </p>
+        <p>
+          <span className="font-semibold">Catching up?</span> If you've been entering only the new stickers and now add a
+          big backlog of duplicates you already owned, that one-off dump would distort the curve. Once you've entered
+          everything you physically own, press <span className="font-semibold">"I've entered everything I currently own"</span>{' '}
+          on the graph page. Earlier points stay but are greyed out, and your accurate curve starts from there.
+        </p>
+      </Section>
+
       <Section title="A note on accuracy">
         <p>
           The app trusts your records — it can't see your real album. If a count ever looks wrong, just use the record

@@ -14,20 +14,28 @@ export function StickersProvider({ children }) {
   const [loadingStickers, setLoadingStickers] = useState(true)
 
   useEffect(() => {
-    // Don't fetch until there is a logged-in user
-    if (!user) {
-      setStickers([])
-      setLoadingStickers(false)
-      return
-    }
+    // `active` guards against a stale fetch resolving after the user changed
+    // or the provider unmounted. All state updates happen inside this async
+    // function (never synchronously in the effect body).
+    let active = true
 
-    async function fetchStickers() {
+    async function loadStickers() {
+      // Don't fetch until there is a logged-in user
+      if (!user) {
+        if (active) {
+          setStickers([])
+          setLoadingStickers(false)
+        }
+        return
+      }
 
       setLoadingStickers(true)
 
       const { data, error } = await supabase
         .from('stickers')
         .select('id, code, category, album_id, albums(name)')
+
+      if (!active) return
 
       if (error) {
         console.error('Error fetching stickers:', error.message)
@@ -43,7 +51,8 @@ export function StickersProvider({ children }) {
       setLoadingStickers(false)
     }
 
-    fetchStickers()
+    loadStickers()
+    return () => { active = false }
   }, [user]) // re-run whenever the logged-in user changes
 
   return (
@@ -53,6 +62,7 @@ export function StickersProvider({ children }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useStickers() {
   return useContext(StickersContext)
 }

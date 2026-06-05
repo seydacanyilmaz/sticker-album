@@ -41,7 +41,9 @@ export function AuthProvider({ children }) {
 }
 
 // useAuth is a custom hook — any component can call useAuth() to get the
-// current user and loading state instead of importing AuthContext directly
+// current user and loading state instead of importing AuthContext directly.
+// (Colocated with the provider by design; Fast Refresh rule disabled for it.)
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuth() {
   return useContext(AuthContext)
 }

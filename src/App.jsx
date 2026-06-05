@@ -4,13 +4,13 @@
 
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './lib/AuthContext'
-import { supabase } from './lib/supabaseClient'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import RecordNew from './pages/RecordNew'
 import RecordTrade from './pages/RecordTrade'
 import RecordDonated from './pages/RecordDonated'
 import MyStickers from './pages/MyStickers'
+import Ppns from './pages/Ppns'
 import Help from './pages/Help'
 import Layout from './components/Layout'
 
@@ -44,6 +44,7 @@ export default function App() {
         <Route path="/record-trade" element={<ProtectedRoute><Layout><RecordTrade /></Layout></ProtectedRoute>} />
         <Route path="/record-donated" element={<ProtectedRoute><Layout><RecordDonated /></Layout></ProtectedRoute>} />
         <Route path="/my-stickers" element={<ProtectedRoute><Layout><MyStickers /></Layout></ProtectedRoute>} />
+        <Route path="/ppns" element={<ProtectedRoute><Layout><Ppns /></Layout></ProtectedRoute>} />
         <Route path="/help" element={<ProtectedRoute><Layout><Help /></Layout></ProtectedRoute>} />
 
         {/* Catch all unknown URLs and redirect to home */}

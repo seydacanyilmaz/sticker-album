@@ -18,6 +18,7 @@ const NAV_LINKS = [
   { label: 'Record a swap', path: '/record-trade' },
   { label: 'Record donated stickers', path: '/record-donated' },
   { label: 'My Stickers', path: '/my-stickers' },
+  { label: 'Price per new sticker', path: '/ppns' },
   { label: 'How it works', path: '/help' },
 ]
 
@@ -38,7 +39,7 @@ export default function Nav() {
     document.documentElement.classList.toggle('dark', next)
     try {
       localStorage.setItem('theme', next ? 'dark' : 'light')
-    } catch (e) {
+    } catch {
       // localStorage may be unavailable (e.g. private mode); the toggle still works for this session.
     }
   }

@@ -1,7 +1,7 @@
 // Dashboard.jsx
 // Main page after login. Shows swap suggestions, swap notifications, and nav buttons.
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useProfile } from '../lib/ProfileContext'
@@ -22,13 +22,7 @@ export default function Dashboard() {
   const [selectedSwap, setSelectedSwap] = useState(null)
   const [selectedNotification, setSelectedNotification] = useState(null)
 
-  useEffect(() => {
-    if (!profile || loadingStickers) return
-    fetchSwapSummaries()
-    fetchNotifications()
-  }, [profile, loadingStickers])
-
-  async function fetchSwapSummaries() {
+  const fetchSwapSummaries = useCallback(async () => {
     setLoadingSwaps(true)
 
     const stickerById = {}
@@ -100,9 +94,9 @@ export default function Dashboard() {
     setUserProgress(progress)
 
     setLoadingSwaps(false)
-  }
+  }, [profile, stickers])
 
-  async function fetchNotifications() {
+  const fetchNotifications = useCallback(async () => {
     setLoadingNotifications(true)
     const { data, error } = await supabase
       .from('trade_notifications')
@@ -114,7 +108,18 @@ export default function Dashboard() {
     if (error) console.error(error.message)
     else setNotifications(data)
     setLoadingNotifications(false)
-  }
+  }, [profile])
+
+  useEffect(() => {
+    if (!profile || loadingStickers) return
+    let active = true
+    async function load() {
+      if (!active) return
+      await Promise.all([fetchSwapSummaries(), fetchNotifications()])
+    }
+    load()
+    return () => { active = false }
+  }, [profile, loadingStickers, fetchSwapSummaries, fetchNotifications])
 
   async function handleNotification(notificationId, action) {
     if (action === 'accepted') {
@@ -182,6 +187,7 @@ export default function Dashboard() {
           { label: 'Record a swap', path: '/record-trade' },
           { label: 'Record donated stickers', path: '/record-donated' },
           { label: 'My Stickers', path: '/my-stickers' },
+          { label: 'Price per new sticker', path: '/ppns' },
         ].map(({ label, path }) => (
           <Link
             key={path}

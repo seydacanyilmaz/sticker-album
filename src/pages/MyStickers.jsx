@@ -2,8 +2,8 @@
 // Spreadsheet-style view of all 980 stickers with live count updates.
 // Filter by status, search by code prefix, export current view as CSV.
 
-import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useProfile } from '../lib/ProfileContext'
 import { useStickers } from '../lib/StickersContext'
@@ -23,7 +23,6 @@ function getStatus(count) {
 
 export default function MyStickers() {
   const { profile } = useProfile()
-  const navigate = useNavigate()
   const { stickers, loadingStickers } = useStickers()
 
   const [userCounts, setUserCounts] = useState({})
@@ -31,10 +30,22 @@ export default function MyStickers() {
   const [filter, setFilter] = useState('all')
   const [search, setSearch] = useState('')
 
+  const fetchCounts = useCallback(async () => {
+    if (!profile) return
+    setLoadingCounts(true)
+    const { data } = await supabase.from('user_stickers').select('sticker_id, count').eq('user_id', profile.id)
+    const counts = {}
+    for (const row of data || []) counts[row.sticker_id] = row.count
+    setUserCounts(counts)
+    setLoadingCounts(false)
+  }, [profile])
+
   useEffect(() => {
     if (!profile) return
 
-    fetchCounts()
+    let active = true
+    async function load() { if (active) await fetchCounts() }
+    load()
 
     const channel = supabase
       .channel('my-stickers-live')
@@ -51,17 +62,8 @@ export default function MyStickers() {
       )
       .subscribe()
 
-    return () => supabase.removeChannel(channel)
-  }, [profile])
-
-  async function fetchCounts() {
-    setLoadingCounts(true)
-    const { data } = await supabase.from('user_stickers').select('sticker_id, count').eq('user_id', profile.id)
-    const counts = {}
-    for (const row of data || []) counts[row.sticker_id] = row.count
-    setUserCounts(counts)
-    setLoadingCounts(false)
-  }
+    return () => { active = false; supabase.removeChannel(channel) }
+  }, [profile, fetchCounts])
 
   if (loadingStickers || loadingCounts) return <p className="text-gray-500 dark:text-gray-400">Loading...</p>
 

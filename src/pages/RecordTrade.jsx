@@ -3,8 +3,8 @@
 // Creates a trade_notifications row for the other user (table name unchanged).
 // Supports pre-fill via navigation state from the Dashboard swap detail modal.
 
-import { useState, useEffect } from 'react'
-import { useNavigate, useLocation, Link } from 'react-router-dom'
+import { useState, useEffect, useCallback } from 'react'
+import { useLocation, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useProfile } from '../lib/ProfileContext'
 import { useStickers } from '../lib/StickersContext'
@@ -16,17 +16,20 @@ const OUTSIDE = 'outside'
 
 export default function RecordTrade() {
   const { profile } = useProfile()
-  const navigate = useNavigate()
   const location = useLocation()
   const { loadingStickers } = useStickers()
 
-  const [otherUsers, setOtherUsers] = useState([])
-  const [tradedWithUserId, setTradedWithUserId] = useState('')
+  // Pre-fill from the Dashboard swap detail modal (navigation state). Read once
+  // at mount via lazy initial state so there's no setState-in-effect.
+  const prefill = location.state || {}
 
-  const [selectedReceived, setSelectedReceived] = useState([])
+  const [otherUsers, setOtherUsers] = useState([])
+  const [tradedWithUserId, setTradedWithUserId] = useState(prefill.tradedWithUserId || '')
+
+  const [selectedReceived, setSelectedReceived] = useState(prefill.selectedReceived || [])
   const [historyReceived, setHistoryReceived] = useState([])
 
-  const [selectedGiven, setSelectedGiven] = useState([])
+  const [selectedGiven, setSelectedGiven] = useState(prefill.selectedGiven || [])
   const [historyGiven, setHistoryGiven] = useState([])
 
   const [warningIds, setWarningIds] = useState([])
@@ -38,27 +41,15 @@ export default function RecordTrade() {
   const [success, setSuccess] = useState(false)
   const [clampedCodes, setClampedCodes] = useState([])
 
-  useEffect(() => {
-    if (!profile) return
-    fetchOtherUsers()
-    fetchWarningIds()
-
-    if (location.state) {
-      if (location.state.selectedReceived) setSelectedReceived(location.state.selectedReceived)
-      if (location.state.selectedGiven) setSelectedGiven(location.state.selectedGiven)
-      if (location.state.tradedWithUserId) setTradedWithUserId(location.state.tradedWithUserId)
-    }
-  }, [profile])
-
-  async function fetchOtherUsers() {
+  const fetchOtherUsers = useCallback(async () => {
     // Hide test accounts from real users; test users can still see each other.
     let query = supabase.from('profiles').select('id, username').neq('id', profile.id)
     if (!profile.is_test) query = query.eq('is_test', false)
     const { data } = await query
     setOtherUsers(data || [])
-  }
+  }, [profile])
 
-  async function fetchWarningIds() {
+  const fetchWarningIds = useCallback(async () => {
     const { data } = await supabase
       .from('user_stickers').select('sticker_id, count')
       .eq('user_id', profile.id).gt('count', 0)
@@ -68,7 +59,18 @@ export default function RecordTrade() {
     setOwnedCounts(counts)
     setWarningIds(rows.filter((r) => r.count === 1).map((r) => r.sticker_id))
     setAlreadyHaveIds(rows.map((r) => r.sticker_id))
-  }
+  }, [profile])
+
+  useEffect(() => {
+    if (!profile) return
+    let active = true
+    async function load() {
+      if (!active) return
+      await Promise.all([fetchOtherUsers(), fetchWarningIds()])
+    }
+    load()
+    return () => { active = false }
+  }, [profile, fetchOtherUsers, fetchWarningIds])
 
   function clearFeedback() { setSuccess(false); setClampedCodes([]) }
 
