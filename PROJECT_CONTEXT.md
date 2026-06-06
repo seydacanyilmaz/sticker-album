@@ -16,7 +16,7 @@ A private web app for a small group of users to track individual sticker album c
 ---
 
 ## Current state
-All phases complete. App is live on GitHub Pages.
+All phases complete. App is live on GitHub Pages, and every DB migration in this doc has been applied to the production Supabase.
 
 - Phase 1 (scaffold): Complete
 - Phase 2 (database): Complete
@@ -25,7 +25,8 @@ All phases complete. App is live on GitHub Pages.
 - Phase 5 (record pages): Complete
 - Phase 6 (Tailwind CSS styling): Complete
 - Phase 7 (GitHub Pages deploy): Complete
-- Phase 8 (PPNS graph): Complete — pending the DB migration below being run in Supabase
+- Phase 8 (PPNS graph): Complete & deployed
+- Phase 9 (changelog "What's new" popup + collapsible Help page): Complete & deployed
 
 ---
 
@@ -131,6 +132,7 @@ Shows users the changes shipped since they last acknowledged the changelog.
 - **UI:** `ChangelogModal.jsx` — same overlay style as the dashboard modals; closes via "Got it", backdrop, ✕, or Escape. Auto-open shows just the unseen entries; manual open shows the full list.
 - **Manual access:** a **"What's new"** button in the hamburger dropdown (`Nav.jsx`) reopens it any time.
 - **Rollout note:** existing users have a null marker, so they see the inaugural entry (PPNS) on their next login.
+- **Preview gotcha:** the marker lives on the shared/production Supabase, so previewing a new entry (even locally) "spends" your own unseen state — once you dismiss it, `last_seen_changelog_id` is set and you won't see it again. RLS only lets a user edit their own row, so to re-show it you must reset it in the Supabase SQL editor: `update profiles set last_seen_changelog_id = null where username = '<you>';`. To preview without burning your own marker, use a test account (its marker is resettable by the test suite).
 
 ---
 
