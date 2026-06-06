@@ -8,6 +8,15 @@
 
 export const CHANGELOG = [
   {
+    id: 2,
+    date: '2026-06-06',
+    title: 'Selected sticker counts',
+    items: [
+      'The sticker picker now shows how many stickers you have selected, on every record page.',
+      'After recording new stickers, the "Added to album" and "Duplicates" lists now show a count too.',
+    ],
+  },
+  {
     id: 1,
     date: '2026-06-06',
     title: 'Price per new sticker (PPNS)',

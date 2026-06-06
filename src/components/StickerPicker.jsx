@@ -107,6 +107,11 @@ export default function StickerPicker({
 
       {/* Selected chips */}
       {selected.length > 0 && (
+        <p className="text-xs text-gray-500 dark:text-gray-400">
+          {selected.length} {selected.length === 1 ? 'sticker' : 'stickers'} selected
+        </p>
+      )}
+      {selected.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
           {selected.map((sticker, index) => {
             const isDuplicateSelection = warnOnDuplicateSelection && selectionCounts[sticker.id] > 1

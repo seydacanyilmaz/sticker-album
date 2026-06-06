@@ -69,6 +69,24 @@ test('RecordNew: clear removes all selected stickers', async ({ page }) => {
   await expect(page.locator('button:has-text("Confirm")')).toBeDisabled()
 })
 
+test('StickerPicker: shows a count of selected stickers', async ({ page }) => {
+  await page.goto('record-new')
+  await addSticker(page, 'ENG5')
+  await expect(page.locator('text=1 sticker selected')).toBeVisible()
+  await addSticker(page, 'ENG6')
+  await expect(page.locator('text=2 stickers selected')).toBeVisible()
+})
+
+test('RecordNew: summary headings show counts', async ({ page }) => {
+  await setCount(page, 'ENG2', 0)
+  await page.goto('record-new')
+  await addSticker(page, 'ENG2')
+  await addSticker(page, 'ENG2')
+  await page.click('button:has-text("Confirm")')
+  await expect(page.locator('text=Added to album (1):')).toBeVisible()
+  await expect(page.locator('text=Duplicates (1):')).toBeVisible()
+})
+
 // ─── MyStickers ──────────────────────────────────────────────────────────────
 
 test('MyStickers: shows a duplicate sticker with correct count and status', async ({ page }) => {

@@ -205,12 +205,12 @@ export default function RecordNew() {
         <div className="space-y-2">
           {summary.newStickers.length > 0 && (
             <p className="text-sm text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/40 border border-green-200 dark:border-green-800 rounded-lg px-3 py-2">
-              <span className="font-semibold">Added to album:</span> {summary.newStickers.join(', ')}
+              <span className="font-semibold">Added to album ({summary.newStickers.length}):</span> {summary.newStickers.join(', ')}
             </p>
           )}
           {summary.duplicateStickers.length > 0 && (
             <p className="text-sm text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg px-3 py-2">
-              <span className="font-semibold">Duplicates:</span> {summary.duplicateStickers.join(', ')}
+              <span className="font-semibold">Duplicates ({summary.duplicateStickers.length}):</span> {summary.duplicateStickers.join(', ')}
             </p>
           )}
           {summary.newStickers.length === 0 && summary.duplicateStickers.length === 0 && (
