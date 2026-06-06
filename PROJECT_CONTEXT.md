@@ -44,6 +44,7 @@ All phases complete. App is live on GitHub Pages.
 - Created manually in Supabase for each user — no self-registration
 - `is_test` (boolean, default false): marks dedicated test accounts. Test users are hidden from real users everywhere users are listed (swap dropdown, swap suggestions, "Everyone's progress"). A test user still sees everyone (so two test users can swap with each other in tests). Filter rule: queries add `.eq('is_test', false)` only when the current `profile.is_test` is false.
 - `ppns_baseline_at` (timestamptz, nullable): accuracy baseline for the PPNS graph. Snapshots before this timestamp are greyed/dashed ("catching up"); the accurate curve starts here. Set by the user clicking "I've entered everything I currently own" on the PPNS page. Null = no baseline, all data shown as accurate.
+- `last_seen_changelog_id` (int, nullable): the highest changelog entry id the user has acknowledged. The "What's new" popup shows entries with `id >` this value; null = seen nothing → sees all entries. Set to the latest id when the user dismisses the popup.
 
 ### `user_stickers`
 - `id`, `user_id`, `sticker_id`, `count`
@@ -121,19 +122,34 @@ All phases complete. App is live on GitHub Pages.
 
 ---
 
+## Changelog / "What's new" popup
+Shows users the changes shipped since they last acknowledged the changelog.
+
+- **Content:** a static array in `src/changelog.js` — each entry `{ id, date, title, items: [] }`, newest first, with a unique increasing `id`. To ship an update: add a new entry at the top with the next id, then deploy. `LATEST_CHANGELOG_ID` is derived from the max id.
+- **Seen-tracking:** per-user `profiles.last_seen_changelog_id`. A user sees entries with `id >` their marker (null → sees all). Dismissing the popup writes the latest id.
+- **Logic:** `ChangelogContext.jsx` (mounted in `main.jsx` inside `ProfileProvider`). Open-state is **derived** from event-handler state (never an effect) to satisfy the hooks lint rules: auto-opens once per session when there are unseen entries; `openManually()` (the menu item) opens the full history. `close()` persists the marker via a `profiles` update.
+- **UI:** `ChangelogModal.jsx` — same overlay style as the dashboard modals; closes via "Got it", backdrop, ✕, or Escape. Auto-open shows just the unseen entries; manual open shows the full list.
+- **Manual access:** a **"What's new"** button in the hamburger dropdown (`Nav.jsx`) reopens it any time.
+- **Rollout note:** existing users have a null marker, so they see the inaugural entry (PPNS) on their next login.
+
+---
+
 ## Folder structure
 ```
 src/
   components/
     Layout.jsx        — wraps all protected pages with Nav, max-w-3xl centered
-    Nav.jsx           — sticky top bar + hamburger dropdown (Links + Dark mode toggle + Sign out)
+    Nav.jsx           — sticky top bar + hamburger dropdown (Links + What's new + Dark mode toggle + Sign out)
     StickerPicker.jsx — reusable autocomplete sticker input component
     PpnsChart.jsx     — hand-rolled SVG line chart for the PPNS page (no chart dependency)
+    ChangelogModal.jsx — "What's new" popup (presentational; state in ChangelogContext)
   lib/
     AuthContext.jsx       — auth session context (useAuth hook)
     ProfileContext.jsx    — current user's profile context (useProfile hook)
     StickersContext.jsx   — full sticker list context (useStickers hook), fetches after login
+    ChangelogContext.jsx  — "What's new" popup logic (useChangelog hook), renders ChangelogModal
     supabaseClient.js     — Supabase client instance
+  changelog.js            — changelog entries + LATEST_CHANGELOG_ID (edit + deploy to ship an update)
   pages/
     Dashboard.jsx     — nav buttons (top) + swap notification banners + swap suggestions + everyone's progress + swap/notification detail modals
     Login.jsx         — email + password login
@@ -142,7 +158,8 @@ src/
     RecordDonated.jsx — decrement counts, warnings, clamp message
     RecordNew.jsx     — increment counts, post-confirm new vs duplicate summary
     RecordTrade.jsx   — two StickerPicker panels, trade_notifications row, pre-fill support, "Someone outside this app" option
-    Help.jsx          — in-app user guide ("How it works")
+    Help.jsx          — in-app user guide ("How it works"), collapsible sections
+  changelog.js        — changelog entries (see Changelog section)
   App.jsx             — routing, ProtectedRoute, Layout wrapping
   main.jsx            — entry point, all providers nested here, GitHub Pages 404 redirect handler
 public/
@@ -152,6 +169,7 @@ tests/
   app.spec.js              — Playwright e2e suite (idempotent — no DB reset needed)
   swap-notification.spec.js — two-user e2e test for the swap notification "See details" flow
   ppns.spec.js             — PPNS feature tests + 200-pack simulation (kept on testuser2 for chart viewing)
+  changelog.spec.js        — "What's new" popup test (clears/restores testuser1's seen-marker)
   helpers.js               — shared test helpers (getCount / resetToZero / setCount)
   auth.setup.js            — Playwright auth setup (logs in, saves storage state)
 ```
@@ -247,6 +265,8 @@ Helps each user decide **when to stop buying packs**. As the album fills up, pac
   4. **Simulation:** testuser2 "opens" 200 packs (1400 stickers) recorded in batches of 21 (every 3 packs → 67 snapshots). It mirrors the app's RecordNew snapshot logic but writes straight to Supabase (driving 1400 stickers through the UI would be far too slow). It resets testuser2 first (DELETE policies required) and **leaves the data in place** so the chart can be viewed — log in as testuser2 → "Price per new sticker".
   5. Logs in as testuser2 in the browser and asserts the simulated curve renders and the amber "stop buying" indicator appears (PPNS climbed past the £0.36 direct-buy price).
 - Note: the simulation only writes snapshots/counts for testuser2; since testuser2 is `is_test=true`, this data is hidden from real users. The swap test may later tweak testuser2's ENG7 count, but it never touches `progress_snapshots`, so the chart stays intact.
+- `changelog.spec.js` tests the "What's new" popup: temporarily sets testuser1's `last_seen_changelog_id` to null, asserts the popup auto-shows the PPNS entry, dismisses it (persists the marker), confirms it doesn't reappear on reload, and reopens it from the menu — then restores the marker in `finally`.
+- `auth.setup.js` marks both test accounts' changelog as **seen** (`last_seen_changelog_id = LATEST_CHANGELOG_ID`) after login, so the popup doesn't auto-open and intercept clicks during the rest of the suite. Requires the `last_seen_changelog_id` migration.
 - First-time setup on a new machine: `npx playwright install chromium`, then create `.env.test` (see Environment).
 
 ---
@@ -336,6 +356,13 @@ create policy "own user_stickers - delete" on user_stickers
   for delete using (auth.uid() = user_id);
 ```
 If skipped, the simulation test fails fast on a guard assertion ("progress_snapshots not empty after reset").
+
+### DB migration: changelog "seen" marker
+The "What's new" popup tracks per-user what's been acknowledged. **Run before deploying the changelog feature:**
+```sql
+alter table profiles add column last_seen_changelog_id int;
+```
+Existing rows are null → every current user sees the inaugural changelog on their next login. (Profiles RLS already lets a user update their own row, which is how the popup persists the marker.)
 
 ---
 

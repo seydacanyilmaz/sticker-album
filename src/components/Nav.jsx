@@ -6,6 +6,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useProfile } from '../lib/ProfileContext'
+import { useChangelog } from '../lib/ChangelogContext'
 
 // Reads the current theme from the <html> class set by the pre-paint script in index.html.
 function isDarkMode() {
@@ -24,6 +25,7 @@ const NAV_LINKS = [
 
 export default function Nav() {
   const { profile } = useProfile()
+  const { openManually } = useChangelog()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const [dark, setDark] = useState(isDarkMode)
@@ -76,6 +78,12 @@ export default function Nav() {
               </Link>
             ))}
             <div className="border-t border-gray-100 dark:border-gray-800 mt-2 pt-2 flex flex-col gap-1">
+              <button
+                onClick={() => { openManually(); setMenuOpen(false) }}
+                className="w-full text-left px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
+              >
+                What's new
+              </button>
               <button
                 onClick={toggleTheme}
                 className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors text-sm font-medium"
