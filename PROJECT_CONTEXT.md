@@ -27,6 +27,7 @@ All phases complete. App is live on GitHub Pages, and every DB migration in this
 - Phase 7 (GitHub Pages deploy): Complete
 - Phase 8 (PPNS graph): Complete & deployed
 - Phase 9 (changelog "What's new" popup + collapsible Help page): Complete & deployed
+- Phase 10 (selected-sticker counts): Complete & deployed
 
 ---
 
@@ -158,7 +159,7 @@ src/
     MyStickers.jsx    — spreadsheet table of all 980 stickers, live counts via Supabase realtime, filter-aware summary line
     Ppns.jsx          — Price-per-new-sticker graph, adjustable pricing inputs, baseline reset
     RecordDonated.jsx — decrement counts, warnings, clamp message
-    RecordNew.jsx     — increment counts, post-confirm new vs duplicate summary
+    RecordNew.jsx     — increment counts, post-confirm new vs duplicate summary (each list heading shows a count: "Added to album (N)" / "Duplicates (N)")
     RecordTrade.jsx   — two StickerPicker panels, trade_notifications row, pre-fill support, "Someone outside this app" option
     Help.jsx          — in-app user guide ("How it works"), collapsible sections
   changelog.js        — changelog entries (see Changelog section)
@@ -213,6 +214,7 @@ Behaviour:
 - Enter selects if exactly one suggestion remains
 - Escape clears suggestions
 - No limit on how many times a sticker can be added (intentional)
+- **Selected count:** when anything is selected, a small grey line above the chips reads "N stickers selected" (singular "1 sticker selected"). Counts total chips (duplicates included), so it appears on every record page that uses StickerPicker (RecordNew, both RecordTrade panels, RecordDonated).
 
 ---
 
