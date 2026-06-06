@@ -3,12 +3,22 @@
 
 import { Link } from 'react-router-dom'
 
+// Collapsible topic card. Uses native <details>/<summary> so it's accessible and
+// keyboard-friendly with no JS state. Sections start collapsed and open independently.
 function Section({ title, children }) {
   return (
-    <section className="space-y-2">
-      <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
-      <div className="text-sm text-gray-600 dark:text-gray-400 space-y-2">{children}</div>
-    </section>
+    <details className="group rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 overflow-hidden">
+      <summary className="flex items-center justify-between gap-3 cursor-pointer select-none list-none px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors [&::-webkit-details-marker]:hidden">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-gray-100">{title}</h3>
+        <svg
+          className="w-4 h-4 shrink-0 text-gray-400 transition-transform duration-200 group-open:rotate-180"
+          viewBox="0 0 20 20" fill="currentColor" aria-hidden="true"
+        >
+          <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.17l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clipRule="evenodd" />
+        </svg>
+      </summary>
+      <div className="px-4 pb-4 pt-3 text-sm text-gray-600 dark:text-gray-400 space-y-2 border-t border-gray-100 dark:border-gray-800">{children}</div>
+    </details>
   )
 }
 
@@ -20,11 +30,12 @@ function Badge({ color, children }) {
 
 export default function Help() {
   return (
-    <div className="space-y-6">
-      <div className="space-y-1">
+    <div className="space-y-3">
+      <div className="space-y-1 mb-2">
         <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100">How it works</h2>
         <p className="text-sm text-gray-600 dark:text-gray-400">
           A quick guide to tracking your sticker album, recording swaps, and finding people to swap with.
+          Tap a section to expand it.
         </p>
       </div>
 

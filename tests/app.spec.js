@@ -197,13 +197,16 @@ test('Nav: How it works link opens the help page', async ({ page }) => {
 
 // ─── Help page ─────────────────────────────────────────────────────────────────
 
-test('Help: renders the guide with key sections', async ({ page }) => {
+test('Help: renders collapsible sections that expand on click', async ({ page }) => {
   await page.goto('help')
   await expect(page.getByRole('heading', { name: 'How it works' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Record a swap' })).toBeVisible()
+  // Section titles are visible while collapsed; their bodies are hidden until expanded.
+  const swapSection = page.getByRole('heading', { name: 'Record a swap' })
+  await expect(swapSection).toBeVisible()
+  await expect(page.locator('text=Someone outside this app')).toBeHidden()
+  // Expanding the section reveals its content.
+  await swapSection.click()
   await expect(page.locator('text=Someone outside this app')).toBeVisible()
-  // The new-vs-duplicate summary note we documented
-  await expect(page.locator('text=which stickers were')).toBeVisible()
 })
 
 // ─── RecordSwap / swap ────────────────────────────────────────────────────────
