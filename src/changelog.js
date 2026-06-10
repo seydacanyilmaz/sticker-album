@@ -8,6 +8,18 @@
 
 export const CHANGELOG = [
   {
+    id: 3,
+    date: '2026-06-10',
+    title: 'Edit counts directly + see your latest changes',
+    items: [
+      'Edit counts directly: you can now fix any count straight on the My Stickers page — type a new number and click Save.',
+      'You could practically track your whole album just by editing these numbers, but it\'s intended only as a correction tool. Recording through Record new, Record a swap, and Record donated is still the main way to keep things up to date — direct edits skip the features tied to those pages: the Price per new sticker graph (only Record new adds points to it) and swap notifications to the other person (only Record a swap sends them).',
+      'New "Last changed" column shows when each sticker was last updated, and a "Recently changed" sort floats your latest edits to the top.',
+      'The "Collected" filter now includes duplicates (everything you have at least one of), not just stickers you have exactly one of.',
+      'Fixed the Dashboard "Everyone\'s progress" totals, which could show fewer stickers than you actually had.',
+    ],
+  },
+  {
     id: 2,
     date: '2026-06-06',
     title: 'Selected sticker counts',

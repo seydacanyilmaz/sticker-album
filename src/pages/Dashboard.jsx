@@ -35,11 +35,24 @@ export default function Dashboard() {
 
     if (profilesError) { console.error(profilesError.message); setLoadingSwaps(false); return }
 
-    const { data: allUserStickers, error: stickersError } = await supabase
-      .from('user_stickers')
-      .select('user_id, sticker_id, count')
+    // Fetch ALL users' rows in pages. PostgREST caps a single request at 1000 rows
+    // by default, so an unpaginated select silently truncates once the whole
+    // user_stickers table crosses 1000 rows — dropping some of the current user's
+    // rows and under-counting progress/swaps. Page through with .range() until done.
+    const PAGE_SIZE = 1000
+    const allUserStickers = []
+    for (let from = 0; ; from += PAGE_SIZE) {
+      const { data: page, error: stickersError } = await supabase
+        .from('user_stickers')
+        .select('user_id, sticker_id, count')
+        .order('id', { ascending: true })
+        .range(from, from + PAGE_SIZE - 1)
 
-    if (stickersError) { console.error(stickersError.message); setLoadingSwaps(false); return }
+      if (stickersError) { console.error(stickersError.message); setLoadingSwaps(false); return }
+      if (!page || page.length === 0) break
+      allUserStickers.push(...page)
+      if (page.length < PAGE_SIZE) break
+    }
 
     const stickerMap = {}
     for (const row of allUserStickers) {

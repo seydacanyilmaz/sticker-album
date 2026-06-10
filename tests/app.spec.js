@@ -20,6 +20,27 @@ test('dashboard has navigation links', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'My Stickers' }).first()).toBeVisible()
 })
 
+// Guards the pagination fix: "Everyone's progress" (which fetches every user's rows)
+// must report the same collected/total for the current user as My Stickers (which
+// fetches only the current user). They diverged when the unpaginated Dashboard query
+// hit PostgREST's 1000-row cap and silently dropped some of the user's rows.
+test('dashboard self progress matches My Stickers totals', async ({ page }) => {
+  await page.goto('my-stickers')
+  const mine = await page.getByText(/You have collected/).innerText()
+  const m = mine.match(/collected\s+(\d+)\s+stickers out of\s+\d+\.\s+Your total number of stickers including all duplicates is\s+(\d+)/)
+  expect(m, `Could not parse My Stickers summary: ${mine}`).not.toBeNull()
+
+  await page.goto('.')
+  const section = page.locator('section').filter({ hasText: "Everyone's progress" })
+  await expect(section.getByText(/You have completed/)).toBeVisible()
+  const dash = await section.innerText()
+  const d = dash.match(/You have completed\s+(\d+)\s+out of\s+\d+\s+stickers\.\s+You have\s+(\d+)\s+total/)
+  expect(d, `Could not parse Dashboard self line: ${dash}`).not.toBeNull()
+
+  expect(d[1]).toBe(m[1]) // completed === collected
+  expect(d[2]).toBe(m[2]) // total (incl. duplicates) matches
+})
+
 // ─── RecordNew ───────────────────────────────────────────────────────────────
 
 test('RecordNew: adds a new sticker and shows it in summary', async ({ page }) => {
@@ -94,7 +115,7 @@ test('MyStickers: shows a duplicate sticker with correct count and status', asyn
   await page.goto('my-stickers')
   const row = stickerRow(page, 'ENG1')
   await expect(row).toBeVisible()
-  await expect(row.locator('td').nth(2)).toContainText('2')
+  await expect(row.locator('td').nth(2).locator('input')).toHaveValue('2')
   await expect(row.locator('td').nth(3)).toContainText('Duplicate')
 })
 
@@ -183,7 +204,7 @@ test('MyStickers: a reset sticker shows count 0 and Missing', async ({ page }) =
   await resetToZero(page, 'ENG1')
   await page.goto('my-stickers')
   const row = stickerRow(page, 'ENG1')
-  await expect(row.locator('td').nth(2)).toContainText('0')
+  await expect(row.locator('td').nth(2).locator('input')).toHaveValue('0')
   await expect(row.locator('td').nth(3)).toContainText('Missing')
 })
 
@@ -249,7 +270,7 @@ test('RecordSwap: recording an outside swap updates counts and shows success', a
 
   await page.goto('my-stickers')
   const row = stickerRow(page, 'BRA1')
-  await expect(row.locator('td').nth(2)).toContainText('1')
+  await expect(row.locator('td').nth(2).locator('input')).toHaveValue('1')
   await expect(row.locator('td').nth(3)).toContainText('Collected')
 })
 
@@ -273,4 +294,82 @@ test('MyStickers: Duplicates filter shows the duplicates summary', async ({ page
   await page.goto('my-stickers')
   await page.click('button:has-text("Duplicates")')
   await expect(page.locator('text=You have duplicates for')).toBeVisible()
+})
+
+// ─── MyStickers: manual count adjustment ───────────────────────────────────────
+
+test('MyStickers: editing a count inline saves and updates status', async ({ page }) => {
+  await setCount(page, 'ENG1', 1)
+  await page.goto('my-stickers')
+  const row = stickerRow(page, 'ENG1')
+  const input = row.locator('input')
+  await expect(input).toHaveValue('1')
+  await input.fill('3')
+  await row.getByRole('button', { name: 'Save' }).click()
+  await expect(input).toHaveValue('3')
+  await expect(row.locator('td').nth(3)).toContainText('Duplicate')
+  // The new value persists across a reload.
+  await page.reload()
+  await expect(stickerRow(page, 'ENG1').locator('input')).toHaveValue('3')
+})
+
+test('MyStickers: Save button appears only after the count changes', async ({ page }) => {
+  await setCount(page, 'ENG1', 1)
+  await page.goto('my-stickers')
+  const row = stickerRow(page, 'ENG1')
+  // No pending change → no Save button.
+  await expect(row.getByRole('button', { name: 'Save' })).toHaveCount(0)
+  await row.locator('input').fill('2')
+  await expect(row.getByRole('button', { name: 'Save' })).toBeVisible()
+})
+
+test('MyStickers: setting a count to 0 inline marks it Missing', async ({ page }) => {
+  await setCount(page, 'ENG1', 2)
+  await page.goto('my-stickers')
+  const row = stickerRow(page, 'ENG1')
+  await row.locator('input').fill('0')
+  await row.getByRole('button', { name: 'Save' }).click()
+  await expect(row.locator('input')).toHaveValue('0')
+  await expect(row.locator('td').nth(3)).toContainText('Missing')
+})
+
+// ─── MyStickers: Collected filter (count >= 1) ─────────────────────────────────
+
+test('MyStickers: Collected filter includes duplicates', async ({ page }) => {
+  await setCount(page, 'ENG1', 2) // a duplicate is still "collected"
+  await page.goto('my-stickers')
+  await page.click('button:has-text("Collected")')
+  await expect(stickerRow(page, 'ENG1')).toBeVisible()
+})
+
+test('MyStickers: Collected filter button is labelled just "Collected"', async ({ page }) => {
+  await page.goto('my-stickers')
+  await expect(page.getByRole('button', { name: 'Collected', exact: true })).toBeVisible()
+  await expect(page.locator('text=Have 1 copy')).toHaveCount(0)
+})
+
+// ─── MyStickers: Last changed column + Recently changed sort ───────────────────
+
+test('MyStickers: Last changed column updates after an edit', async ({ page }) => {
+  await setCount(page, 'ENG1', 1)
+  await page.goto('my-stickers')
+  const row = stickerRow(page, 'ENG1')
+  await row.locator('input').fill('2')
+  await row.getByRole('button', { name: 'Save' }).click()
+  // Last changed is the 5th column (index 4); the DB trigger stamps it to ~now and
+  // it arrives over the realtime subscription.
+  await expect(row.locator('td').nth(4)).toContainText(/just now|seconds ago|minute/, { timeout: 10000 })
+})
+
+test('MyStickers: Recently changed sort floats the latest edit to the top', async ({ page }) => {
+  await setCount(page, 'ENG1', 1)
+  await page.goto('my-stickers')
+  const row = stickerRow(page, 'ENG1')
+  await row.locator('input').fill('4')
+  await row.getByRole('button', { name: 'Save' }).click()
+  // Wait for the fresh timestamp to land so the sort key is up to date.
+  await expect(row.locator('td').nth(4)).toContainText(/just now|seconds ago/, { timeout: 10000 })
+  await page.click('button:has-text("Recently changed")')
+  // ENG1 was edited last, so it should be the first row under the recency sort.
+  await expect(page.locator('tbody tr').first().locator('td').nth(0)).toHaveText('ENG1')
 })

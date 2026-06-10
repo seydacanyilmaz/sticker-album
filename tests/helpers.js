@@ -21,11 +21,12 @@ export function stickerRow(page, code) {
 }
 
 // Read the current count for a sticker from the MyStickers table.
+// The Count column is an editable number input, so read its value (not cell text).
 export async function getCount(page, code) {
   await page.goto('my-stickers')
   const row = stickerRow(page, code)
   await row.waitFor({ state: 'attached' })
-  const txt = await row.locator('td').nth(2).innerText()
+  const txt = await row.locator('td').nth(2).locator('input').inputValue()
   return parseInt(txt, 10) || 0
 }
 

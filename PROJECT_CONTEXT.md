@@ -28,6 +28,7 @@ All phases complete. App is live on GitHub Pages, and every DB migration in this
 - Phase 8 (PPNS graph): Complete & deployed
 - Phase 9 (changelog "What's new" popup + collapsible Help page): Complete & deployed
 - Phase 10 (selected-sticker counts): Complete & deployed
+- Phase 11 (inline manual count editing + "Last changed" column/sort + Collected-filter fix + Dashboard pagination fix): Complete
 
 ---
 
@@ -49,10 +50,11 @@ All phases complete. App is live on GitHub Pages, and every DB migration in this
 - `last_seen_changelog_id` (int, nullable): the highest changelog entry id the user has acknowledged. The "What's new" popup shows entries with `id >` this value; null = seen nothing → sees all entries. Set to the latest id when the user dismisses the popup.
 
 ### `user_stickers`
-- `id`, `user_id`, `sticker_id`, `count`
+- `id`, `user_id`, `sticker_id`, `count`, `updated_at`
 - `count` meaning: 0 = missing, 1 = collected, 2+ = duplicate
 - Rows are created on first record; if no row exists for a sticker, count is implicitly 0
 - Database CHECK constraint: `count >= 0`
+- `updated_at` (timestamptz, nullable): when this row's count last changed. Set automatically by a **BEFORE INSERT OR UPDATE trigger** (`set_user_stickers_updated_at`), so every write path stamps it — RecordNew, RecordDonated, RecordTrade accept, and the inline manual edit on MyStickers — with no app code needed. Existing rows from before the migration stay NULL (shown as "—") until next touched. Drives the MyStickers "Last changed" column and "Recently changed" sort.
 - RLS enabled
 
 ### `trade_notifications`
@@ -156,7 +158,7 @@ src/
   pages/
     Dashboard.jsx     — nav buttons (top) + swap notification banners + swap suggestions + everyone's progress + swap/notification detail modals
     Login.jsx         — email + password login
-    MyStickers.jsx    — spreadsheet table of all 980 stickers, live counts via Supabase realtime, filter-aware summary line
+    MyStickers.jsx    — spreadsheet table of all 980 stickers, live counts via Supabase realtime, filter-aware summary line, inline count editing (CountEditor + Save), "Last changed" column + "Recently changed" sort
     Ppns.jsx          — Price-per-new-sticker graph, adjustable pricing inputs, baseline reset
     RecordDonated.jsx — decrement counts, warnings, clamp message
     RecordNew.jsx     — increment counts, post-confirm new vs duplicate summary (each list heading shows a count: "Added to album (N)" / "Duplicates (N)")
@@ -219,12 +221,15 @@ Behaviour:
 ---
 
 ## MyStickers page
-- Spreadsheet-style `<table>` with columns: Code, Category, Count, Status
-- Status badge: Missing (red) / Collected (green) / Duplicate (blue)
-- Collected filter = exactly count 1 (excludes duplicates)
-- Filter buttons: All / Collected (Have 1 copy) / Missing / Duplicates
+- Spreadsheet-style `<table>` with columns: Code, Category, Count, Status, **Last changed**
+- Status badge: Missing (red) / Collected (green) / Duplicate (blue). Note the **status** badge still means count exactly 1 = Collected, 2+ = Duplicate — only the *Collected filter* (below) was widened to include duplicates.
+- **Collected filter = count ≥ 1** (includes duplicates — "everything you have at least one of"). Changed from the old "exactly 1" so the filter matches the everyday meaning of "collected"; it now also lines up with the "All" summary's collected number (which is `count >= 1`).
+- Filter buttons: All / Collected / Missing / Duplicates
 - Search input filters by sticker code prefix
-- Export CSV button downloads currently filtered view
+- **Inline manual count editing:** the Count column is a `CountEditor` (number input, native spinner arrows). Editing reveals a **Save** button (only shown while the typed value differs from the saved count); Save or Enter commits. Writes go straight to `user_stickers` — optimistic local update, then update-existing-row or insert-new-row (count 0 keeps the row at 0, no delete), reverting + showing an error banner on failure. **Manual edits never write a PPNS snapshot** (only RecordNew does). The draft input resyncs to external changes via the "adjust state during render" pattern (`prevCount`), not a setState-in-effect (lint rule `react-hooks/set-state-in-effect`).
+- **"Last changed" column:** relative label (`formatRelative` → "just now" / "3 hours ago" / "—" when never tracked), with the full local date-time as a hover `title` (`formatAbsolute`). Value comes from `user_stickers.updated_at`, kept fresh by the realtime subscription (the DB trigger stamps it on every write).
+- **"Recently changed" sort toggle** (next to Export CSV): when on, rows sort by `updated_at` desc (never-tracked rows sink to the bottom); off = natural sticker order.
+- Export CSV button downloads the currently filtered/sorted view; includes a "Last changed" column as a raw ISO timestamp (comma-free, machine-sortable).
 - Filter-aware summary line above the table:
   - **All:** "You have collected N out of {total} stickers. Your total number of stickers including all duplicates is M." (uses `stickers.length`, not a hardcoded 980)
   - **Duplicates:** "You have duplicates for X stickers. Total number of duplicates is Y." (X = stickers with 2+ copies; Y = sum of copies beyond the first)
@@ -240,6 +245,8 @@ Section order (top to bottom):
 3. **Pending swap notifications** — banners with See details / Accept / Dismiss (see Swap notifications above)
 4. **Swap suggestions** — per other-user offer counts + "See details" modal → "Start a swap with these stickers" (pre-fills RecordTrade)
 5. **Everyone's progress** — per user (incl. self), "completed N out of {total} stickers, M total including duplicates", sorted by most completed. Same `is_test` filtering as swap suggestions, so test accounts are excluded for real users. Useful to confirm at a glance that test runs didn't alter real users' data.
+
+**Pagination (important):** swap suggestions and "Everyone's progress" both come from one `fetchSwapSummaries` query that pulls **all users'** `user_stickers` rows. PostgREST caps a single request at **1000 rows by default**, so an unpaginated select silently truncated once the whole table crossed 1000 rows — dropping some of the current user's rows and under-counting both sections (Dashboard showed fewer than MyStickers). Fixed by paging through with `.range()` ordered by `id` until a short page returns. Any new bulk read of `user_stickers` across users must paginate the same way.
 
 ---
 
@@ -261,6 +268,8 @@ Helps each user decide **when to stop buying packs**. As the album fills up, pac
 - **Playwright** end-to-end tests, run with `npm test`. Config in `playwright.config.js` (single worker, sequential, auto-starts `npm run dev`).
 - Tests run against the **real Supabase** project using dedicated test accounts (`is_test = true`).
 - **Idempotent by design:** tests never assume a clean database. Any count-sensitive test first drives its stickers to a known value via `helpers.js` (`getCount`, `resetToZero`, `setCount`) using the app's own Record/Donate flows. The suite can be re-run any number of times with **no DB reset** and no data-loss risk.
+- **Count column is an `<input>`:** since Phase 11 the MyStickers Count cell is the inline editor, so its value is read with `.locator('input').inputValue()` / asserted with `toHaveValue(...)`, not cell text. `helpers.getCount` does this; new assertions must too.
+- `app.spec.js` covers the Phase 11 changes: inline edit saves + updates status + persists, Save button only appears once the value changes, inline set-to-0 → Missing, Collected filter includes duplicates, Collected button label, "Last changed" updates after an edit, "Recently changed" sort floats the latest edit first, and a `dashboard self progress matches My Stickers totals` consistency test guarding the pagination fix (a true 1000-row truncation test isn't idempotent-friendly, so we assert the two pages agree for the current user instead).
 - `swap-notification.spec.js` is a two-user test (needs `TEST_EMAIL_B` / `TEST_PASSWORD_B`); it auto-skips if those aren't set. It cleans User 2's slate (dismiss notifications + reset) before recording, so it stays idempotent.
 - `ppns.spec.js` covers the PPNS feature (`test.describe.serial`):
   1. RecordNew (UI) writes a `progress_snapshots` row with the right `batch_size`/`new_count`/`pack_stickers_total`/`unique_count` — verified by querying Supabase directly with supabase-js.
@@ -368,6 +377,25 @@ alter table profiles add column last_seen_changelog_id int;
 ```
 Existing rows are null → every current user sees the inaugural changelog on their next login. (Profiles RLS already lets a user update their own row, which is how the popup persists the marker.)
 
+### DB migration: `user_stickers.updated_at` (Last changed column)
+The MyStickers "Last changed" column and "Recently changed" sort need a per-row timestamp. A trigger stamps it on every insert/update so no app write code has to set it. **Run before deploying Phase 11 (already applied to production 2026-06-10):**
+```sql
+alter table user_stickers add column updated_at timestamptz;
+
+create or replace function set_user_stickers_updated_at()
+returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+create trigger user_stickers_set_updated_at
+before insert or update on user_stickers
+for each row execute function set_user_stickers_updated_at();
+```
+Existing rows stay NULL (shown as "—") until next touched — we don't fake a "changed at migration time". The "Last changed" column refreshes live via the existing realtime subscription, so realtime must remain enabled for `user_stickers`.
+
 ---
 
 ## Known issues / resolved
@@ -380,3 +408,5 @@ Existing rows are null → every current user sees the inaugural changelog on th
 - The Trade→Swap UI rename broke a test asserting the old "Record a trade" label — updated to "Record a swap"
 - Code/DB still use "trade" naming intentionally (route, component, table) while the UI says "swap" — do not rename these without a coordinated DB migration
 - Two-user swap test hung for 120s on a higher-latency machine: the `login()` helper read the welcome heading before the profile loaded, so the username came back `""` and `selectOption({ label: "" })` waited forever. Fixed on two fronts: (1) `login()` now waits for a non-empty username (`/Welcome,\s+\S+/`); (2) `ProfileContext` keeps `loadingProfile` true while a logged-in user's profile is being fetched, so `Dashboard` shows "Loading..." instead of briefly rendering "Welcome," with no name. Latent race, only surfaced under slower network to Supabase.
+- Dashboard "Everyone's progress" and swap suggestions under-counted vs MyStickers once `user_stickers` crossed 1000 rows total — the unpaginated all-users fetch hit PostgREST's default 1000-row cap and silently truncated. Fixed by paginating `fetchSwapSummaries` with `.range()` ordered by `id`. (See Dashboard page → Pagination.)
+- The inline count editor turned the MyStickers Count cell into an `<input>`, which broke `helpers.getCount` and a few assertions that read the cell as text (they returned empty → 0). Fixed by reading the input value (`inputValue()` / `toHaveValue`).

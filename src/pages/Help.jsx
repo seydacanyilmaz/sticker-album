@@ -121,11 +121,21 @@ export default function Help() {
           This is the full list of all 980 stickers with your current count and status. You can:
         </p>
         <ul className="space-y-1 pl-1 list-disc list-inside">
-          <li>Filter by <span className="font-semibold">All</span>, <span className="font-semibold">Collected</span>, <span className="font-semibold">Missing</span>, or <span className="font-semibold">Duplicates</span></li>
+          <li>Filter by <span className="font-semibold">All</span>, <span className="font-semibold">Collected</span> (everything you have at least one of, including duplicates), <span className="font-semibold">Missing</span>, or <span className="font-semibold">Duplicates</span></li>
           <li>Search by sticker code (e.g. type <span className="font-mono">ENG</span>)</li>
           <li>See a running summary of how many you've collected and how many duplicates you have</li>
           <li><span className="font-semibold">Export CSV</span> of whatever you're currently viewing</li>
         </ul>
+        <p>
+          <span className="font-semibold">Fix a count directly:</span> each row has an editable count — type the correct
+          number and press <span className="font-semibold">Save</span>. This is the quickest way to correct a mistake
+          without going through the record pages.
+        </p>
+        <p>
+          The <span className="font-semibold">Last changed</span> column shows when each sticker was last updated, and the
+          <span className="font-semibold"> Recently changed</span> button sorts your most recent edits to the top — handy
+          for spotting and fixing a slip you just made.
+        </p>
         <p>This page updates live, so if you accept a swap it reflects right away.</p>
       </Section>
 
@@ -158,9 +168,9 @@ export default function Help() {
 
       <Section title="A note on accuracy">
         <p>
-          The app trusts your records — it can't see your real album. If a count ever looks wrong, just use the record
-          pages to correct it, or check the <span className="font-semibold">My Stickers</span> page to see where things
-          stand. Keeping your counts honest is what makes the swap suggestions useful for everyone.
+          The app trusts your records — it can't see your real album. If a count ever looks wrong, the quickest fix is to
+          edit it directly on the <span className="font-semibold">My Stickers</span> page (or use the record pages).
+          Keeping your counts honest is what makes the swap suggestions useful for everyone.
         </p>
       </Section>
 
