@@ -25,6 +25,14 @@ export default function RecordNew() {
     setSummary(null)
   }
 
+  // Append a whole imported batch in one step so a single Undo removes the import.
+  function handleImport(stickers) {
+    if (!stickers.length) return
+    setHistory((prev) => [...prev, selected])
+    setSelected((prev) => [...prev, ...stickers])
+    setSummary(null)
+  }
+
   function handleRemove(index) {
     setHistory((prev) => [...prev, selected])
     setSelected((prev) => prev.filter((_, i) => i !== index))
@@ -170,6 +178,7 @@ export default function RecordNew() {
         selected={selected}
         onSelect={handleSelect}
         onRemove={handleRemove}
+        onImport={handleImport}
         warnOnDuplicateSelection={false}
       />
 

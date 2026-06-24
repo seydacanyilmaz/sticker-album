@@ -46,6 +46,8 @@ export default function RecordDonated() {
   function clearFeedback() { setSuccess(false); setClampedCodes([]) }
 
   function handleSelect(sticker) { setHistory((p) => [...p, selected]); setSelected((p) => [...p, sticker]); clearFeedback() }
+  // Append a whole imported batch in one step so a single Undo removes the import.
+  function handleImport(stickers) { if (!stickers.length) return; setHistory((p) => [...p, selected]); setSelected((p) => [...p, ...stickers]); clearFeedback() }
   function handleRemove(index) { setHistory((p) => [...p, selected]); setSelected((p) => p.filter((_, i) => i !== index)); clearFeedback() }
   function handleUndo() {
     if (history.length === 0) return
@@ -108,6 +110,7 @@ export default function RecordDonated() {
         selected={selected}
         onSelect={handleSelect}
         onRemove={handleRemove}
+        onImport={handleImport}
         warningIds={warningIds}
         warnOnDuplicateSelection={true}
         labelWarning={overSelectedCodes.length > 0}

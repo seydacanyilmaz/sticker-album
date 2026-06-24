@@ -116,6 +116,35 @@ export default function Help() {
         </p>
       </Section>
 
+      <Section title="Import a list from a file (CSV)">
+        <p>
+          On every record page — <span className="font-semibold">Record new</span>,
+          <span className="font-semibold"> Record a swap</span> (both the received and given sides), and
+          <span className="font-semibold"> Record donated</span> — there's an <span className="font-semibold">Import from CSV</span>{' '}
+          button. Instead of typing each code, you can load a file of sticker codes and they're added for you.
+        </p>
+        <p>
+          The file is just a list of codes — put each one on its own line, or separate them with commas
+          (e.g. <span className="font-mono">ENG1,ENG2,BRA5</span>). <span className="font-semibold">Each time a code
+          appears it adds one copy</span>, so list a code twice to add two. Extra columns like category, count or status
+          are ignored, which means a file exported with <span className="font-semibold">Export CSV</span> on the My
+          Stickers page works as-is.
+        </p>
+        <p className="bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2 text-blue-900 dark:text-blue-200">
+          <span className="font-semibold">Great for swaps agreed outside the app.</span> Export your
+          <span className="font-semibold"> Missing</span> and <span className="font-semibold">Duplicates</span> lists from
+          My Stickers and send them to the other person. When they reply with the codes you each agreed to swap, drop those
+          into the <span className="font-semibold">received</span> and <span className="font-semibold">given</span> boxes
+          by importing — no retyping.
+        </p>
+        <p>
+          After importing, the app tells you how many stickers it added and flags any entries it
+          <span className="font-semibold"> didn't recognise</span> (a typo or a code that isn't in this album). Using
+          Excel? Save the sheet as <span className="font-semibold">CSV</span> first. And if an import isn't what you
+          wanted, one <span className="font-semibold">Undo</span> removes the whole batch.
+        </p>
+      </Section>
+
       <Section title="My Stickers">
         <p>
           This is the full list of all 980 stickers with your current count and status. You can:

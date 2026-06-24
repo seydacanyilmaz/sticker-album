@@ -8,6 +8,17 @@
 
 export const CHANGELOG = [
   {
+    id: 4,
+    date: '2026-06-24',
+    title: 'Import sticker lists from a file + swap suggestion tweaks',
+    items: [
+      'New "Import from CSV" button on every record page (Record new, Record a swap, and Record donated). Load a file of sticker codes instead of typing each one — list them one per line or separated by commas, and any exported "Export CSV" file works as-is.',
+      'Especially handy for swaps agreed outside the app: export your Missing and Duplicates lists, send them over, and import the codes you agreed on straight into the received/given boxes. The app tells you how many it added and flags anything it didn\'t recognise; one Undo removes a whole import.',
+      'Swap suggestion details now list stickers in alphabetical order, and that order carries through when you start the swap.',
+      'Updated the Price per new sticker defaults to the publisher\'s direct-buy listing (£0.45 each, up to 250 stickers).',
+    ],
+  },
+  {
     id: 3,
     date: '2026-06-10',
     title: 'Edit counts directly + see your latest changes',

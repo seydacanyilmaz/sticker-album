@@ -74,6 +74,10 @@ export default function RecordTrade() {
 
   function clearFeedback() { setSuccess(false); setClampedCodes([]) }
 
+  // Append a whole imported batch in one step so a single Undo removes the import.
+  function handleImportReceived(list) { if (!list.length) return; setHistoryReceived((p) => [...p, selectedReceived]); setSelectedReceived((p) => [...p, ...list]); clearFeedback() }
+  function handleImportGiven(list) { if (!list.length) return; setHistoryGiven((p) => [...p, selectedGiven]); setSelectedGiven((p) => [...p, ...list]); clearFeedback() }
+
   function handleSelectReceived(s) { setHistoryReceived((p) => [...p, selectedReceived]); setSelectedReceived((p) => [...p, s]); clearFeedback() }
   function handleRemoveReceived(i) { setHistoryReceived((p) => [...p, selectedReceived]); setSelectedReceived((p) => p.filter((_, j) => j !== i)); clearFeedback() }
   function handleUndoReceived() { if (!historyReceived.length) return; setSelectedReceived(historyReceived[historyReceived.length - 1]); setHistoryReceived((p) => p.slice(0, -1)); clearFeedback() }
@@ -190,6 +194,7 @@ export default function RecordTrade() {
             selected={selectedReceived}
             onSelect={handleSelectReceived}
             onRemove={handleRemoveReceived}
+            onImport={handleImportReceived}
             warningIds={alreadyHaveIds}
             warningTooltip="You already have this sticker"
             warnOnDuplicateSelection={true}
@@ -212,6 +217,7 @@ export default function RecordTrade() {
             selected={selectedGiven}
             onSelect={handleSelectGiven}
             onRemove={handleRemoveGiven}
+            onImport={handleImportGiven}
             warningIds={warningIds}
             warnOnDuplicateSelection={true}
             labelWarning={overSelectedGivenCodes.length > 0}

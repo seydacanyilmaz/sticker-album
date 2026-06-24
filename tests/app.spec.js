@@ -282,6 +282,50 @@ test('RecordSwap: giving more than owned shows the live warning before confirm',
   await expect(page.locator('text=Your current record shows')).toBeVisible()
 })
 
+test('StickerPicker: import from CSV adds one chip per row and reports unmatched', async ({ page }) => {
+  await page.goto('record-trade')
+  // Mirrors the Export CSV (header + Code,Category,Count,Status). One row = one copy,
+  // so ENG1 twice + ENG2 once = three chips. The header row is ignored and the bogus
+  // code is reported back as unmatched.
+  const csv = [
+    'Code,Category,Count,Status',
+    'ENG1,England,0,Missing',
+    'ENG2,England,0,Missing',
+    'ENG1,England,0,Missing',
+    'ZZZ999,Nowhere,0,Missing',
+  ].join('\n')
+
+  // Wait for the pickers to finish loading stickers — the Import button (and the
+  // hidden file input) only render once StickersContext has populated, and importing
+  // before then would match nothing.
+  await expect(page.getByRole('button', { name: 'Import from CSV' }).first()).toBeVisible()
+
+  // Received panel = first picker's (hidden) file input.
+  const fileInput = page.locator('input[type="file"]').nth(0)
+  await fileInput.setInputFiles({ name: 'received.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
+
+  await expect(page.getByText('Imported 3 stickers')).toBeVisible()
+  await expect(page.getByText('Couldn\'t match 1 entry: ZZZ999')).toBeVisible()
+  await expect(page.getByText('3 stickers selected')).toBeVisible()
+
+  // A single Undo removes the whole imported batch.
+  await page.getByRole('button', { name: 'Undo' }).first().click()
+  await expect(page.getByText('3 stickers selected')).toHaveCount(0)
+})
+
+test('StickerPicker: import accepts a single line of comma-separated codes', async ({ page }) => {
+  await page.goto('record-trade')
+  await expect(page.getByRole('button', { name: 'Import from CSV' }).first()).toBeVisible()
+
+  // A plain .txt with every code on one line, comma-separated (ENG2 twice = two copies).
+  const txt = 'ENG1,ENG2,ENG2,BRA5'
+  await page.locator('input[type="file"]').nth(0)
+    .setInputFiles({ name: 'codes.txt', mimeType: 'text/plain', buffer: Buffer.from(txt) })
+
+  await expect(page.getByText('Imported 4 stickers')).toBeVisible()
+  await expect(page.getByText('4 stickers selected')).toBeVisible()
+})
+
 // ─── MyStickers summary line ───────────────────────────────────────────────────
 
 test('MyStickers: All filter shows the collection summary', async ({ page }) => {
