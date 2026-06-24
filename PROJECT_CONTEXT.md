@@ -29,6 +29,7 @@ All phases complete. App is live on GitHub Pages, and every DB migration in this
 - Phase 9 (changelog "What's new" popup + collapsible Help page): Complete & deployed
 - Phase 10 (selected-sticker counts): Complete & deployed
 - Phase 11 (inline manual count editing + "Last changed" column/sort + Collected-filter fix + Dashboard pagination fix): Complete
+- Phase 12 (CSV/text import in StickerPicker on all record pages + alphabetical swap suggestions + updated PPNS direct-buy defaults): Complete
 
 ---
 
@@ -203,6 +204,7 @@ Props:
 - `selected` — array of sticker objects currently selected
 - `onSelect(sticker)` — called when a sticker is added
 - `onRemove(index)` — called when ✕ is clicked (uses index not id, because duplicates are allowed)
+- `onImport(stickers[])` — optional; when provided, an **"Import from CSV"** button + hidden file input appear. Called with the array of matched sticker objects parsed from a CSV/text file. The parent should append the whole batch in **one** step (single history push) so one Undo removes the import. Wired on all record pages (RecordNew, both RecordTrade panels, RecordDonated).
 - `warningIds` — array of sticker ids to show ⚠️
 - `warningTooltip` — tooltip text for warningIds warnings (default: "You only have 1 copy of this sticker")
 - `warnOnDuplicateSelection` — boolean, warns when same sticker added more than once in selection
@@ -217,6 +219,7 @@ Behaviour:
 - Escape clears suggestions
 - No limit on how many times a sticker can be added (intentional)
 - **Selected count:** when anything is selected, a small grey line above the chips reads "N stickers selected" (singular "1 sticker selected"). Counts total chips (duplicates included), so it appears on every record page that uses StickerPicker (RecordNew, both RecordTrade panels, RecordDonated).
+- **CSV/text import (`onImport`):** the "Import from CSV" button reads a `.csv`/`.txt` file with `file.text()` (no dependency) and splits the **whole file** on newline, comma, semicolon, or tab — so codes can be one-per-line, comma-separated on a single line, or any mix. **One occurrence = one copy** (list a code twice → two copies). Every token matching a known code (case-insensitive) is added; tokens shaped like a code (`/^[a-z]+\d+$/i`, e.g. ENG7) that don't match are reported as "couldn't match"; everything else (headers, category names, counts) is ignored — so an exported `Code,Category,Count,Status` file imports just the codes. Shows feedback: "Imported N stickers. Couldn't match … : …". Designed for swaps agreed outside the app: export Missing/Duplicates from MyStickers, exchange, import the agreed codes into the received/given panels. Note: the file input only renders once stickers have loaded, so tests must wait for the "Import from CSV" button before `setInputFiles` (importing before load matches nothing).
 
 ---
 
@@ -243,7 +246,7 @@ Section order (top to bottom):
 1. Welcome heading
 2. **Navigation buttons** (Record new / Record a swap / Record donated / My Stickers)
 3. **Pending swap notifications** — banners with See details / Accept / Dismiss (see Swap notifications above)
-4. **Swap suggestions** — per other-user offer counts + "See details" modal → "Start a swap with these stickers" (pre-fills RecordTrade)
+4. **Swap suggestions** — per other-user offer counts + "See details" modal → "Start a swap with these stickers" (pre-fills RecordTrade). The "I can offer" / "they can offer" sticker lists are sorted alphabetically by code (letter prefix, then number naturally: ENG2 before ENG10) in `fetchSwapSummaries`, so the modal **and** the pre-filled swap share one consistent order.
 5. **Everyone's progress** — per user (incl. self), "completed N out of {total} stickers, M total including duplicates", sorted by most completed. Same `is_test` filtering as swap suggestions, so test accounts are excluded for real users. Useful to confirm at a glance that test runs didn't alter real users' data.
 
 **Pagination (important):** swap suggestions and "Everyone's progress" both come from one `fetchSwapSummaries` query that pulls **all users'** `user_stickers` rows. PostgREST caps a single request at **1000 rows by default**, so an unpaginated select silently truncated once the whole table crossed 1000 rows — dropping some of the current user's rows and under-counting both sections (Dashboard showed fewer than MyStickers). Fixed by paging through with `.range()` ordered by `id` until a short page returns. Any new bulk read of `user_stickers` across users must paginate the same way.
@@ -256,7 +259,8 @@ Helps each user decide **when to stop buying packs**. As the album fills up, pac
 - **Data source:** `progress_snapshots` (logged-in user only — the chart is private, not multi-user).
 - **Math (per snapshot, self-contained):** `PPNS = (batch_size × packPrice / packSize) / new_count`, or **∞** when `new_count = 0`. X-axis = `pack_stickers_total` (cumulative pack stickers ≈ £ spent), Y-axis = PPNS in £.
 - **Why only RecordNew drives it:** donations would pull the spend axis backwards and swaps would hand free uniques, both distorting "cost per new sticker from packs". So swaps/donations never write snapshots, and per-row `batch_size`/`new_count` are immune to count changes between records.
-- **Adjustable inputs** (persisted to `localStorage` under `ppnsSettings`): pack price (£1.25), stickers per pack (7), direct-buy price (£0.36), direct-buy cap (unknown — blank). The direct-buy price draws a dashed amber reference line.
+- **Adjustable inputs** (persisted to `localStorage` under `ppnsSettings`): pack price (£1.25), stickers per pack (7), direct-buy price (£0.45), direct-buy cap (250). The direct-buy price draws a dashed amber reference line. (The publisher listed direct-buy terms — £0.45 each, up to 250 — so these became the defaults; the info text tells users to check the publisher's site for changes.)
+- **Settings migration:** `SETTINGS_VERSION` (currently 2) + a `ppnsSettingsVersion` key in `localStorage`. On load, if a user's stored version is below current, their saved `individualPrice`/`purchaseCap` are overwritten with the new defaults once, then re-persisted and the version bumped (so later manual edits stick). Fresh users get current defaults and are marked at the current version. Bump `SETTINGS_VERSION` + the migration block when defaults change again.
 - **Baseline (`profiles.ppns_baseline_at`):** the uniques-only user will dump their whole duplicate backlog in one RecordNew confirm, faking a huge early ∞ spike. Clicking **"I've entered everything I currently own"** stamps `now()`; snapshots before it render dashed/grey ("catching up"), the accurate curve starts after. Null baseline = everything shown solid (fresh users).
 - **Chart:** `PpnsChart.jsx` — hand-rolled inline SVG (no charting library, so no React 19 peer-dep risk and a tiny bundle). Solid blue = accurate, dashed grey = pre-baseline, amber dashed = direct-buy line, red ▲ pinned to top = ∞ (zero new this batch). Native `<title>` tooltips per point.
 - **Readout:** shows current totals and a green "packs still good value" / amber "stop buying packs" message based on whether the accurate curve has crossed the direct-buy price.
@@ -270,6 +274,8 @@ Helps each user decide **when to stop buying packs**. As the album fills up, pac
 - **Idempotent by design:** tests never assume a clean database. Any count-sensitive test first drives its stickers to a known value via `helpers.js` (`getCount`, `resetToZero`, `setCount`) using the app's own Record/Donate flows. The suite can be re-run any number of times with **no DB reset** and no data-loss risk.
 - **Count column is an `<input>`:** since Phase 11 the MyStickers Count cell is the inline editor, so its value is read with `.locator('input').inputValue()` / asserted with `toHaveValue(...)`, not cell text. `helpers.getCount` does this; new assertions must too.
 - `app.spec.js` covers the Phase 11 changes: inline edit saves + updates status + persists, Save button only appears once the value changes, inline set-to-0 → Missing, Collected filter includes duplicates, Collected button label, "Last changed" updates after an edit, "Recently changed" sort floats the latest edit first, and a `dashboard self progress matches My Stickers totals` consistency test guarding the pagination fix (a true 1000-row truncation test isn't idempotent-friendly, so we assert the two pages agree for the current user instead).
+  - The inline-edit "persists across a reload" test waits for the save's `user_stickers` PATCH/POST response **before** `page.reload()` — the save is optimistic (UI shows the new value instantly while the write is in flight), so reloading immediately aborts the request and the change is lost. (Flaky-race fix.)
+- `app.spec.js` Phase 12 import tests: import from an exported-style CSV (one copy per row, duplicate row → two copies, header skipped, bogus code reported as unmatched, single Undo removes the whole batch) and import from a single line of comma-separated codes (repeated code → two copies). Both wait for the "Import from CSV" button before `setInputFiles` (file input only renders after stickers load). File contents are passed as an in-memory buffer via `setInputFiles({ name, mimeType, buffer })` — no fixture file on disk.
 - `swap-notification.spec.js` is a two-user test (needs `TEST_EMAIL_B` / `TEST_PASSWORD_B`); it auto-skips if those aren't set. It cleans User 2's slate (dismiss notifications + reset) before recording, so it stays idempotent.
 - `ppns.spec.js` covers the PPNS feature (`test.describe.serial`):
   1. RecordNew (UI) writes a `progress_snapshots` row with the right `batch_size`/`new_count`/`pack_stickers_total`/`unique_count` — verified by querying Supabase directly with supabase-js.
