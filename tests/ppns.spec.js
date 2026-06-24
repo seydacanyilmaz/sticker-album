@@ -99,7 +99,7 @@ test.describe.serial('PPNS feature', () => {
     const buyPrice = page.locator('label', { hasText: 'Direct-buy price' }).locator('input')
     await expect(packPrice).toHaveValue(String(PACK_PRICE))
     await expect(perPack).toHaveValue(String(PACK_SIZE))
-    await expect(buyPrice).toHaveValue('0.36')
+    await expect(buyPrice).toHaveValue('0.45')
 
     // Chart renders (test 1 left a snapshot for this user).
     await expect(page.locator('svg[aria-label="Price per new sticker chart"]')).toBeVisible()
@@ -111,7 +111,7 @@ test.describe.serial('PPNS feature', () => {
     await expect(buyPriceAfter).toHaveValue('0.50')
 
     // Restore default so the test is idempotent.
-    await buyPriceAfter.fill('0.36')
+    await buyPriceAfter.fill('0.45')
   })
 
   // 3) The baseline button stamps profiles.ppns_baseline_at and the UI reflects it.

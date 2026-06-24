@@ -78,6 +78,17 @@ export default function Dashboard() {
         if (theirCount >= 2 && myCount === 0) theyCanOfferMeStickers.push(sticker)
       }
 
+      // Alphabetical by code (letter prefix, then number naturally: ENG2 before ENG10).
+      // Sorting here carries the same order into both the modal and "Start a swap".
+      const byCode = (a, b) => {
+        const prefixA = a.code.replace(/[0-9]/g, '')
+        const prefixB = b.code.replace(/[0-9]/g, '')
+        if (prefixA !== prefixB) return prefixA.localeCompare(prefixB)
+        return parseInt(a.code.replace(/\D/g, ''), 10) - parseInt(b.code.replace(/\D/g, ''), 10)
+      }
+      iCanOfferStickers.sort(byCode)
+      theyCanOfferMeStickers.sort(byCode)
+
       return {
         userId: otherUser.id,
         username: otherUser.username,

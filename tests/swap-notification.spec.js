@@ -92,7 +92,8 @@ test('Swap notification: User 2 can review a swap in the See details modal and a
     // User 2's ENG7 count went up by exactly 1 (received), from the reset baseline of 0.
     await pageB.goto('my-stickers')
     const row = stickerRow(pageB, 'ENG7')
-    await expect(row.locator('td').nth(2)).toContainText('1')
+    // Count cell is an inline editor since Phase 11 — read the input value, not cell text.
+    await expect(row.locator('td').nth(2).locator('input')).toHaveValue('1')
     await expect(row.locator('td').nth(3)).toContainText('Collected')
   } finally {
     await ctxA.close()

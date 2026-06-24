@@ -305,9 +305,18 @@ test('MyStickers: editing a count inline saves and updates status', async ({ pag
   const input = row.locator('input')
   await expect(input).toHaveValue('1')
   await input.fill('3')
+  // The inline save is optimistic — the UI shows the new value instantly while the
+  // DB write is still in flight. Wait for that write to land before reloading, or
+  // page.reload() aborts the pending request and the change never persists.
+  const saved = page.waitForResponse(
+    (r) => r.url().includes('user_stickers') &&
+      ['PATCH', 'POST'].includes(r.request().method()) &&
+      r.status() < 300
+  )
   await row.getByRole('button', { name: 'Save' }).click()
   await expect(input).toHaveValue('3')
   await expect(row.locator('td').nth(3)).toContainText('Duplicate')
+  await saved
   // The new value persists across a reload.
   await page.reload()
   await expect(stickerRow(page, 'ENG1').locator('input')).toHaveValue('3')

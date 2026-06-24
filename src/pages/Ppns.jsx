@@ -21,13 +21,31 @@ import { useProfile } from '../lib/ProfileContext'
 import PpnsChart from '../components/PpnsChart'
 
 // Pricing inputs persist across visits so the user only sets them once.
-const DEFAULTS = { packPrice: '1.25', packSize: '7', individualPrice: '0.36', purchaseCap: '' }
+const DEFAULTS = { packPrice: '1.25', packSize: '7', individualPrice: '0.45', purchaseCap: '250' }
+
+// Bump when DEFAULTS change in a way that should overwrite users' previously saved
+// values. Migrations run once per browser, tracked by ppnsSettingsVersion.
+const SETTINGS_VERSION = 2
 
 function loadSettings() {
   try {
     const raw = localStorage.getItem('ppnsSettings')
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) }
+    if (raw) {
+      const merged = { ...DEFAULTS, ...JSON.parse(raw) }
+      const version = parseInt(localStorage.getItem('ppnsSettingsVersion') || '1', 10)
+      if (version < SETTINGS_VERSION) {
+        // v2: the publisher listed direct-buy terms (£0.45, cap 250), so overwrite the
+        // old placeholder values (£0.36, blank cap) that were saved before the listing.
+        merged.individualPrice = DEFAULTS.individualPrice
+        merged.purchaseCap = DEFAULTS.purchaseCap
+        localStorage.setItem('ppnsSettings', JSON.stringify(merged))
+        localStorage.setItem('ppnsSettingsVersion', String(SETTINGS_VERSION))
+      }
+      return merged
+    }
   } catch { /* ignore */ }
+  // Fresh users get the current defaults; mark the version so the migration won't re-run.
+  try { localStorage.setItem('ppnsSettingsVersion', String(SETTINGS_VERSION)) } catch { /* ignore */ }
   return DEFAULTS
 }
 
@@ -162,9 +180,9 @@ export default function Ppns() {
           <NumberField label="Direct-buy cap" value={settings.purchaseCap} onChange={(v) => updateSetting('purchaseCap', v)} placeholder="?" />
         </div>
         <p className="text-xs text-gray-400 dark:text-gray-500">
-          Each pack sticker costs £{costPerPackSticker.toFixed(3)}. Direct-buy price and cap are the publisher's
-          (yet unknown) terms for buying exact missing stickers — adjust as you learn them.
-          {settings.purchaseCap && ` You expect to buy at most ${settings.purchaseCap} stickers directly.`}
+          Each pack sticker costs £{costPerPackSticker.toFixed(3)}. The direct-buy price (£0.45) and cap (250
+          stickers) are the publisher's current terms for buying exact missing stickers — check the publisher's
+          website for any updates and adjust here if they change.
         </p>
       </section>
 
